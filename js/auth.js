@@ -35,7 +35,7 @@ const Auth = {
     const cleanPass = password.trim();
 
     // 1. Admin Authentication Check
-    if (cleanUser === 'admin' && cleanPass === 'admin123') {
+    if (cleanUser === 'admin' && cleanPass === 'admin010211') {
       const adminUser = {
         username: 'admin',
         name: 'System Administrator',
