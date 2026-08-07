@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Asset Management System</title>
+  <meta name="description" content="Simple, clean Asset Management System for Admin and Store Employees.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- =========================================================================
+       1. UNIFIED LOGIN VIEW (ADMIN & STORE EMPLOYEES)
+       ========================================================================= -->
+  <div id="login-view" class="login-wrapper" style="display: flex;">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        </div>
+        <div>
+          <h1 class="brand-title">AssetManage</h1>
+          <p class="brand-logo-sub" style="font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Portal Login</p>
+        </div>
+      </div>
+
+      <h2 class="login-title">Sign In</h2>
+      <p class="login-subtitle">Log in as System Admin or Store Staff account.</p>
+
+      <div id="loginErrorMsg" class="alert-error" style="display: none;"></div>
+
+      <form onsubmit="App.handleLogin(event)">
+        <div class="form-group">
+          <label class="form-label" for="loginUsername">Username <span class="required">*</span></label>
+          <input type="text" id="loginUsername" class="form-control" placeholder="Enter username..." required value="admin" autocomplete="username">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="loginPassword">Password <span class="required">*</span></label>
+          <div class="password-input-wrapper">
+            <input type="password" id="loginPassword" class="form-control" placeholder="Enter password..." required value="admin123" autocomplete="current-password">
+            <button type="button" class="password-toggle-btn" title="Toggle Password Visibility" onclick="App.togglePasswordVisibility()">
+              <svg id="eyeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top: 24px; padding: 12px;">
+          Sign In to Portal
+        </button>
+      </form>
+
+      <div class="demo-credentials-note">
+        <strong>Login Credentials:</strong><br>
+        • <strong>System Admin:</strong> <code>admin</code> / <code>admin123</code><br>
+        <span style="font-size: 0.82rem; color: #475569;">✨ Fresh System Setup: Log in as System Admin to create store locations, accounts, and equipment.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       2. ADMIN APP SHELL LAYOUT
+       ========================================================================= -->
+  <div id="admin-app-shell" class="app-container" style="display: none;">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-icon" style="width: 36px; height: 36px; font-size: 1rem;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        </div>
+        <div>
+          <div class="sidebar-logo-text">AssetManage</div>
+          <div class="sidebar-logo-sub">ADMIN CONTROL</div>
+        </div>
+      </div>
+
+      <ul class="sidebar-menu">
+        <li class="menu-category">ADMIN MENU</li>
+        <li class="nav-item"><a href="#dashboard" class="nav-link active"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><span>Dashboard</span></a></li>
+        <li class="nav-item"><a href="#stores" class="nav-link"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>Stores</span></a></li>
+        <li class="nav-item"><a href="#assets" class="nav-link"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg><span>Assets</span></a></li>
+        <li class="nav-item"><a href="#maintenance" class="nav-link"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg><span>Maintenance</span></a></li>
+        <li class="nav-item"><a href="#notifications" class="nav-link"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span>Notifications</span></a></li>
+        <li class="nav-item"><a href="#activity-logs" class="nav-link"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Activity Logs</span></a></li>
+        <li class="nav-item"><a href="#reports" class="nav-link"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>Reports</span></a></li>
+        <li class="nav-item"><a href="#settings" class="nav-link"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></a></li>
+        <li class="nav-item" style="margin-top: 24px;"><a href="#logout" class="nav-link nav-logout"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Logout</span></a></li>
+      </ul>
+    </aside>
+
+    <div class="main-wrapper">
+      <header class="top-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button type="button" class="mobile-hamburger-btn" title="Toggle Navigation Menu" onclick="App.toggleMobileSidebar()">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <div class="header-title-box">
+            <h2 id="headerSystemTitle">Simple Asset Management System - Admin</h2>
+          </div>
+        </div>
+        <div class="header-user-box">
+          <a href="#notifications" class="notif-bell-btn" title="View Notifications">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span id="headerNotifBadge" class="notif-unread-badge" style="display: none;">0</span>
+          </a>
+          <div class="user-profile-badge">
+            <div class="user-avatar">SA</div>
+            <div>
+              <div id="headerAdminName" class="user-name">System Administrator</div>
+              <div class="user-role">Super Admin</div>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main id="main-content" class="content-body"></main>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       3. STORE EMPLOYEE APP SHELL LAYOUT
+       ========================================================================= -->
+  <div id="employee-app-shell" class="app-container" style="display: none;">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-icon" style="width: 36px; height: 36px; font-size: 1rem; background: var(--status-green);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div>
+          <div class="sidebar-logo-text">AssetManage</div>
+          <div class="sidebar-logo-sub" style="color: #6ee7b7;">STORE PORTAL</div>
+        </div>
+      </div>
+
+      <ul class="sidebar-menu">
+        <li class="menu-category">EMPLOYEE MENU</li>
+
+        <!-- Dashboard -->
+        <li class="nav-item">
+          <a href="#emp-dashboard" class="nav-link active">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            <span>Dashboard</span>
+          </a>
+        </li>
+
+        <!-- My Assets -->
+        <li class="nav-item">
+          <a href="#emp-assets" class="nav-link">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+            <span>My Assets</span>
+          </a>
+        </li>
+
+        <!-- Notifications -->
+        <li class="nav-item">
+          <a href="#emp-notifications" class="nav-link">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span>Notifications</span>
+          </a>
+        </li>
+
+        <!-- Profile -->
+        <li class="nav-item">
+          <a href="#emp-profile" class="nav-link">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>Profile</span>
+          </a>
+        </li>
+
+        <!-- Logout -->
+        <li class="nav-item" style="margin-top: 24px;">
+          <a href="#logout" class="nav-link nav-logout">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span>Logout</span>
+          </a>
+        </li>
+      </ul>
+    </aside>
+
+    <div class="main-wrapper">
+      <header class="top-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button type="button" class="mobile-hamburger-btn" title="Toggle Navigation Menu" onclick="App.toggleMobileSidebar()">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <div class="header-title-box">
+            <h2>Store Staff Maintenance Portal</h2>
+          </div>
+        </div>
+        <div class="header-user-box">
+          <a href="#emp-notifications" class="notif-bell-btn" title="View Notifications">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span id="headerEmpNotifBadge" class="notif-unread-badge" style="display: none;">0</span>
+          </a>
+          <div class="user-profile-badge">
+            <div class="user-avatar" style="background: #dcfce7; color: #15803d; border-color: #a7f3d0;">SE</div>
+            <div>
+              <div id="headerEmpName" class="user-name">Store Staff</div>
+              <div id="headerEmpStore" class="user-role">Store Location</div>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main id="emp-main-content" class="content-body"></main>
+    </div>
+  </div>
+
+  <!-- MOBILE SIDEBAR BACKDROP OVERLAY -->
+  <div id="sidebarOverlay" class="sidebar-overlay" onclick="App.closeMobileSidebar()"></div>
+
+  <!-- DYNAMIC MODALS CONTAINER -->
+  <div id="modal-container"></div>
+
+  <!-- SCRIPT MODULES -->
+  <!-- Supabase JS Client SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <!-- Admin Views -->
+  <script src="js/views/dashboard.js"></script>
+  <script src="js/views/stores.js"></script>
+  <script src="js/views/assets.js"></script>
+  <script src="js/views/maintenance.js"></script>
+  <script src="js/views/details.js"></script>
+  <script src="js/views/notifications.js"></script>
+  <script src="js/views/logs.js"></script>
+  <script src="js/views/reports.js"></script>
+  <script src="js/views/settings.js"></script>
+  <!-- Store Employee Views -->
+  <script src="js/views/emp-dashboard.js"></script>
+  <script src="js/views/emp-assets.js"></script>
+  <script src="js/views/emp-details.js"></script>
+  <script src="js/views/emp-notifications.js"></script>
+  <script src="js/views/emp-profile.js"></script>
+  <!-- Main App Controller -->
+  <script src="js/app.js"></script>
+
+</body>
+</html>
