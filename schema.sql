@@ -210,10 +210,10 @@ ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
 
 -- Allow read/write access for authenticated users & anon portal clients
-CREATE POLICY "Allow public read access to stores" ON public.stores FOR SELECT USING (true);
-CREATE POLICY "Allow public all access to assets" ON public.assets FOR ALL USING (true);
-CREATE POLICY "Allow public all access to maintenance_history" ON public.maintenance_history FOR ALL USING (true);
-CREATE POLICY "Allow public all access to asset_comments" ON public.asset_comments FOR ALL USING (true);
-CREATE POLICY "Allow public all access to notifications" ON public.notifications FOR ALL USING (true);
-CREATE POLICY "Allow public all access to activity_logs" ON public.activity_logs FOR ALL USING (true);
+CREATE POLICY "Allow public all access to stores" ON public.stores FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all access to assets" ON public.assets FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all access to maintenance_history" ON public.maintenance_history FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all access to asset_comments" ON public.asset_comments FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all access to notifications" ON public.notifications FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all access to activity_logs" ON public.activity_logs FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public read access to settings" ON public.system_settings FOR SELECT USING (true);
