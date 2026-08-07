@@ -1,6 +1,6 @@
 /**
  * Storage & Data Management System for Asset Management App
- * Features real-time Supabase Database & Storage Sync with Local Storage Fallback Cache.
+ * Connects directly to Supabase PostgreSQL Database & Storage buckets with Local Cache fallback.
  * Supabase Project: https://scjntsmoylzakwkeaska.supabase.co
  */
 
@@ -45,17 +45,17 @@ class StorageManager {
     try {
       if (window.supabase && typeof window.supabase.createClient === 'function') {
         this.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        console.log('✅ Supabase Client Initialized Successfully:', SUPABASE_URL);
+        console.log('✅ Connected to Supabase Cloud Database:', SUPABASE_URL);
       } else {
-        console.warn('⚠️ Supabase JS SDK not loaded yet. Running on Local Cache mode.');
+        console.warn('⚠️ Supabase JS SDK loading. Running local fallback mode.');
       }
     } catch (e) {
-      console.error('❌ Supabase Initialization Error:', e);
+      console.error('❌ Supabase Client Error:', e);
     }
   }
 
   async init() {
-    // Initial local cache setup
+    // Initial local storage setup
     if (!localStorage.getItem(STORAGE_KEYS.STORES)) localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(INITIAL_STORES));
     if (!localStorage.getItem(STORAGE_KEYS.ASSETS)) localStorage.setItem(STORAGE_KEYS.ASSETS, JSON.stringify(INITIAL_ASSETS));
     if (!localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS)) localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(INITIAL_NOTIFICATIONS));
@@ -64,15 +64,15 @@ class StorageManager {
     if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(INITIAL_SETTINGS));
     if (!localStorage.getItem('asset_comments')) localStorage.setItem('asset_comments', JSON.stringify(INITIAL_COMMENTS));
 
-    // Async sync from Supabase if online
+    // Fetch and sync latest data from Supabase
     this.syncFromSupabase();
   }
 
   async syncFromSupabase() {
     if (!this.supabase) return;
     try {
-      // 1. Fetch Stores from Supabase
-      const { data: dbStores } = await this.supabase.from('stores').select('*');
+      // 1. Sync Stores from Supabase
+      const { data: dbStores, error: errStores } = await this.supabase.from('stores').select('*');
       if (dbStores && Array.isArray(dbStores)) {
         const mappedStores = dbStores.map(s => ({
           id: s.id,
@@ -88,8 +88,8 @@ class StorageManager {
         this.set(STORAGE_KEYS.STORES, mappedStores);
       }
 
-      // 2. Fetch Assets from Supabase
-      const { data: dbAssets } = await this.supabase.from('assets').select('*');
+      // 2. Sync Assets from Supabase (including dates, cycles & condition)
+      const { data: dbAssets, error: errAssets } = await this.supabase.from('assets').select('*');
       if (dbAssets && Array.isArray(dbAssets)) {
         const mappedAssets = dbAssets.map(a => ({
           id: a.id,
@@ -113,8 +113,8 @@ class StorageManager {
         this.set(STORAGE_KEYS.ASSETS, mappedAssets);
       }
 
-      // 3. Fetch Maintenance History from Supabase
-      const { data: dbHistory } = await this.supabase.from('maintenance_history').select('*').order('created_at', { ascending: false });
+      // 3. Sync Maintenance History from Supabase
+      const { data: dbHistory, error: errHistory } = await this.supabase.from('maintenance_history').select('*').order('created_at', { ascending: false });
       if (dbHistory && Array.isArray(dbHistory)) {
         const mappedHistory = dbHistory.map(h => ({
           id: h.id,
@@ -136,12 +136,12 @@ class StorageManager {
         this.set(STORAGE_KEYS.MAINTENANCE_HISTORY, mappedHistory);
       }
 
-      // Refresh current view if App exists
+      // Refresh View if App is mounted
       if (window.App && typeof window.App.renderCurrentView === 'function') {
         window.App.renderCurrentView();
       }
     } catch (e) {
-      console.warn('Supabase Background Sync Note:', e);
+      console.warn('Supabase Data Sync Note:', e);
     }
   }
 
@@ -163,7 +163,7 @@ class StorageManager {
     }
   }
 
-  // Stores CRUD
+  // Stores CRUD & Supabase Sync
   getStores() {
     return this.get(STORAGE_KEYS.STORES);
   }
@@ -180,7 +180,6 @@ class StorageManager {
     }
     this.set(STORAGE_KEYS.STORES, stores);
 
-    // Sync to Supabase asynchronously
     if (this.supabase) {
       const payload = {
         code: store.code,
@@ -191,10 +190,15 @@ class StorageManager {
         email: store.email,
         status: store.status
       };
-      if (store.id && !store.id.startsWith('str_')) payload.id = store.id;
+      if (store.id && store.id.includes('-')) payload.id = store.id;
 
-      this.supabase.from('stores').upsert(payload).then(({ data, error }) => {
-        if (error) console.error('Supabase Store Upsert Error:', error);
+      this.supabase.from('stores').upsert(payload).select().then(({ data, error }) => {
+        if (error) {
+          console.error('Supabase Store Upsert Error:', error);
+        } else if (data && data[0] && data[0].id) {
+          store.id = data[0].id;
+          this.set(STORAGE_KEYS.STORES, stores);
+        }
       });
     }
 
@@ -205,14 +209,14 @@ class StorageManager {
     const stores = this.getStores().filter(s => s.id !== storeId);
     this.set(STORAGE_KEYS.STORES, stores);
 
-    if (this.supabase && !storeId.startsWith('str_')) {
+    if (this.supabase && storeId.includes('-')) {
       this.supabase.from('stores').delete().eq('id', storeId).then(({ error }) => {
         if (error) console.error('Supabase Delete Store Error:', error);
       });
     }
   }
 
-  // Assets CRUD
+  // Assets CRUD & Supabase Sync (Stores equipment, due_date, last_completed_date & condition)
   getAssets() {
     return this.get(STORAGE_KEYS.ASSETS);
   }
@@ -236,13 +240,12 @@ class StorageManager {
     }
     this.set(STORAGE_KEYS.ASSETS, assets);
 
-    // Sync to Supabase asynchronously
     if (this.supabase) {
       const payload = {
         serial_id: asset.serialId,
         name: asset.name,
         category: asset.category,
-        store_id: asset.storeId,
+        store_id: asset.storeId && asset.storeId.includes('-') ? asset.storeId : null,
         store_name: asset.storeName,
         location: asset.location,
         due_date: asset.dueDate,
@@ -255,10 +258,15 @@ class StorageManager {
         is_completed: asset.isCompleted,
         last_completed_date: asset.lastCompletedDate === 'None' ? null : asset.lastCompletedDate
       };
-      if (asset.id && !asset.id.startsWith('ast_')) payload.id = asset.id;
+      if (asset.id && asset.id.includes('-')) payload.id = asset.id;
 
-      this.supabase.from('assets').upsert(payload).then(({ error }) => {
-        if (error) console.error('Supabase Asset Upsert Error:', error);
+      this.supabase.from('assets').upsert(payload).select().then(({ data, error }) => {
+        if (error) {
+          console.error('Supabase Asset Upsert Error:', error);
+        } else if (data && data[0] && data[0].id) {
+          asset.id = data[0].id;
+          this.set(STORAGE_KEYS.ASSETS, assets);
+        }
       });
     }
 
@@ -269,7 +277,7 @@ class StorageManager {
     const assets = this.getAssets().filter(a => a.id !== assetId);
     this.set(STORAGE_KEYS.ASSETS, assets);
 
-    if (this.supabase && !assetId.startsWith('ast_')) {
+    if (this.supabase && assetId.includes('-')) {
       this.supabase.from('assets').delete().eq('id', assetId).then(({ error }) => {
         if (error) console.error('Supabase Delete Asset Error:', error);
       });
@@ -292,7 +300,7 @@ class StorageManager {
     if (this.supabase) {
       this.supabase.from('notifications').insert({
         message: notif.message,
-        asset_id: notif.assetId && !notif.assetId.startsWith('ast_') ? notif.assetId : null,
+        asset_id: notif.assetId && notif.assetId.includes('-') ? notif.assetId : null,
         asset_name: notif.assetName,
         store_name: notif.storeName,
         user_name: notif.userName,
@@ -356,7 +364,7 @@ class StorageManager {
     }
   }
 
-  // Maintenance History
+  // Maintenance History & Supabase Insert (Stores completed_date, scheduled_due_date, is_late & days_late)
   getMaintenanceHistory(assetId = null) {
     const history = this.get(STORAGE_KEYS.MAINTENANCE_HISTORY);
     if (assetId) {
@@ -372,8 +380,8 @@ class StorageManager {
     this.set(STORAGE_KEYS.MAINTENANCE_HISTORY, history);
 
     if (this.supabase) {
-      this.supabase.from('maintenance_history').insert({
-        asset_id: record.assetId && !record.assetId.startsWith('ast_') ? record.assetId : null,
+      const payload = {
+        asset_id: record.assetId && record.assetId.includes('-') ? record.assetId : null,
         completed_date: record.completedDate,
         scheduled_due_date: record.scheduledDueDate,
         is_late: record.isLate || false,
@@ -386,8 +394,10 @@ class StorageManager {
         photos: record.photos || [],
         is_override: record.isOverride || false,
         override_reason: record.overrideReason || ''
-      }).then(({ error }) => {
-        if (error) console.error('Supabase Maintenance History Error:', error);
+      };
+
+      this.supabase.from('maintenance_history').insert(payload).then(({ error }) => {
+        if (error) console.error('Supabase Maintenance History Insert Error:', error);
       });
     }
   }
@@ -413,7 +423,7 @@ class StorageManager {
 
     if (this.supabase) {
       this.supabase.from('asset_comments').insert({
-        asset_id: assetId && !assetId.startsWith('ast_') ? assetId : null,
+        asset_id: assetId && assetId.includes('-') ? assetId : null,
         user_name: user,
         role: role === 'Store Employee' ? 'Store Manager' : role,
         text
