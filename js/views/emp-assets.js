@@ -124,7 +124,17 @@ const EmpAssetsView = {
                       <div class="task-card-footer">
                         ${
                           asset.isCompleted
-                            ? `<div class="completed-done-banner">✓ Completed on ${Utils.formatDate(asset.lastCompletedDate)}</div>`
+                            ? `
+                              <div class="completed-done-banner">
+                                ✓ Maintenance Completed on ${Utils.formatDate(asset.lastCompletedDate)}
+                                ${asset.lastCompletedBy ? `<div style="font-size: 0.78rem; font-weight: normal; margin-top: 2px;">By: ${Utils.escapeHtml(asset.lastCompletedBy)}</div>` : ''}
+                              </div>
+                              ${asset.cycle !== 'No Repeat' && asset.nextDueDate ? `
+                                <button class="btn btn-sm btn-outline btn-block" style="margin-top: 8px;" onclick="App.advanceToNextCycle('${asset.id}')">
+                                  Start Next Cycle (Scheduled: ${Utils.formatDate(asset.nextDueDate)})
+                                </button>
+                              ` : ''}
+                            `
                             : `
                               <button class="btn btn-primary btn-block" onclick="App.openEmpCompletionModal('${asset.id}')">
                                 Mark as Completed

@@ -366,20 +366,19 @@ const App = {
 
     asset.isCompleted = true;
     asset.lastCompletedDate = todayStr;
-    if (asset.cycle !== 'No Repeat') {
-      asset.dueDate = nextDueDate;
-      asset.isCompleted = false;
-    }
+    asset.lastCompletedBy = 'System Administrator (Admin)';
+    asset.nextDueDate = nextDueDate;
 
     storage.saveAsset(asset);
 
     const mHistoryRecord = {
       assetId: asset.id,
       completedDate: todayStr,
+      scheduledDueDate: asset.dueDate,
       completedBy: 'System Administrator (Admin)',
       status: 'Completed',
       comments,
-      photos: [],
+      photos: asset.imageUrl ? [asset.imageUrl] : [],
       isOverride: isEarly,
       overrideReason
     };
@@ -401,6 +400,28 @@ const App = {
     Utils.showToast(`Maintenance for "${asset.name}" marked completed!`, 'success');
     this.closeModal('overrideModal');
     this.renderCurrentView();
+  },
+
+  // Advance maintenance to next cycle
+  advanceToNextCycle(assetId) {
+    const asset = storage.getAssetById(assetId);
+    if (!asset) return;
+
+    if (asset.nextDueDate && asset.cycle !== 'No Repeat') {
+      asset.dueDate = asset.nextDueDate;
+      asset.isCompleted = false;
+      storage.saveAsset(asset);
+      storage.logActivity(
+        'Advanced Maintenance Cycle',
+        `Advanced ${asset.name} to new maintenance cycle (Due: ${asset.dueDate})`,
+        asset.storeName,
+        asset.name,
+        Auth.getUser()?.name || 'System User',
+        Auth.getUser()?.role || 'Admin'
+      );
+      Utils.showToast(`Advanced "${asset.name}" to next cycle (Scheduled Due: ${Utils.formatDate(asset.dueDate)})`, 'info');
+      this.renderCurrentView();
+    }
   },
 
   // ----------------------------------------------------
@@ -522,7 +543,7 @@ const App = {
     const comments = document.getElementById('empCompComments').value.trim();
     const photoUrl = document.getElementById('empCompPhotoUrl').value.trim();
 
-    // 2. FORM VALIDATION CHECKS
+    // FORM VALIDATION CHECKS
     if (!workerName) {
       alert('Validation Error: Please enter the Assigned Worker / Technician Name.');
       return;
@@ -555,12 +576,17 @@ const App = {
     // Calculate Next Due Date if recurring
     const nextDueDate = Utils.calculateNextDueDate(compDate, asset.cycle, asset.customDays);
 
+    // UPDATE ASSET COMPLETE STATUS, IMAGES & NEXT DUE DATE
     asset.isCompleted = true;
     asset.lastCompletedDate = compDate;
+    asset.lastCompletedBy = workerName;
+    asset.lastProofPhoto = photoUrl;
     asset.condition = newCondition;
-    if (asset.cycle !== 'No Repeat') {
-      asset.dueDate = nextDueDate;
-      asset.isCompleted = false;
+    asset.nextDueDate = nextDueDate;
+
+    // Update asset image to employee uploaded proof photo if generic or missing
+    if (!asset.imageUrl || asset.imageUrl.includes('data:image/svg+xml')) {
+      asset.imageUrl = photoUrl;
     }
 
     storage.saveAsset(asset);
@@ -577,7 +603,7 @@ const App = {
       completedBy: `${workerName} (${user.storeName})`,
       status: 'Completed',
       comments: comments,
-      photos,
+      photos: photos,
       isOverride: false,
       overrideReason: ''
     };

@@ -145,7 +145,17 @@ const EmpDashboardView = {
                         <div class="task-card-footer">
                           ${
                             asset.isCompleted
-                              ? `<div class="completed-done-banner">✓ Completed on ${Utils.formatDate(asset.lastCompletedDate)}</div>`
+                              ? `
+                                <div class="completed-done-banner">
+                                  ✓ Maintenance Completed on ${Utils.formatDate(asset.lastCompletedDate)}
+                                  ${asset.lastCompletedBy ? `<div style="font-size: 0.78rem; font-weight: normal; margin-top: 2px;">By: ${Utils.escapeHtml(asset.lastCompletedBy)}</div>` : ''}
+                                </div>
+                                ${asset.cycle !== 'No Repeat' && asset.nextDueDate ? `
+                                  <button class="btn btn-sm btn-outline btn-block" style="margin-top: 8px;" onclick="App.advanceToNextCycle('${asset.id}')">
+                                    Start Next Cycle (Scheduled: ${Utils.formatDate(asset.nextDueDate)})
+                                  </button>
+                                ` : ''}
+                              `
                               : `
                                 <button class="btn btn-primary btn-block" onclick="App.openEmpCompletionModal('${asset.id}')">
                                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
