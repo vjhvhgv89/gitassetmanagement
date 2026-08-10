@@ -110,6 +110,12 @@ const EmpAssetsView = {
                       <h3 class="task-title" onclick="EmpDetailsView.openModal('${asset.id}')">${Utils.escapeHtml(asset.name)}</h3>
                       <p class="task-location">📍 ${Utils.escapeHtml(asset.location)} (ID: ${Utils.escapeHtml(asset.serialId)})</p>
 
+                      ${asset.rejectionReason && !asset.isCompleted ? `
+                        <div style="margin-bottom: 12px; font-size: 0.82rem; padding: 8px 10px; border-radius: 6px; background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b;">
+                          ⚠️ <strong>Admin Revision Requested:</strong> ${Utils.escapeHtml(asset.rejectionReason)}
+                        </div>
+                      ` : ''}
+
                       <div class="task-dates">
                         <div>
                           <span class="spec-label">Category:</span>

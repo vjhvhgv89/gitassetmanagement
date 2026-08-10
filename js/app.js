@@ -304,56 +304,86 @@ const App = {
     if (!asset) return;
 
     const todayStr = Utils.getTodayStr();
+    const history = storage.getMaintenanceHistory(asset.id);
+    const latestRecord = history[0];
+
+    const defaultDate = latestRecord ? latestRecord.completedDate : (asset.lastCompletedDate && asset.lastCompletedDate !== 'None' ? asset.lastCompletedDate : todayStr);
+    const defaultWorker = latestRecord ? latestRecord.completedBy : (asset.lastCompletedBy || 'System Administrator (Admin)');
+    const defaultComments = latestRecord ? latestRecord.comments : '';
+    const defaultPhoto = (latestRecord && latestRecord.photos && latestRecord.photos[0]) ? latestRecord.photos[0] : asset.lastProofPhoto;
+
     const isEarly = new Date(asset.dueDate) > new Date(todayStr);
 
     const modalHtml = `
       <div class="modal-overlay" id="overrideModal">
         <div class="modal-card">
           <div class="modal-header">
-            <h3>Complete Maintenance (Admin Override)</h3>
+            <h3>Review / Complete Maintenance Task</h3>
             <button class="modal-close-btn" onclick="App.closeModal('overrideModal')">&times;</button>
           </div>
           <form onsubmit="App.handleSaveOverride(event, '${asset.id}')">
             <div class="modal-body">
               ${
-                isEarly ? `
+                latestRecord ? `
+                  <div class="alert-info-box" style="margin-bottom: 16px; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 12px; border-radius: 8px; font-size: 0.88rem;">
+                    ✓ <strong>Employee Submitted Task Auto-Loaded:</strong> Showing data submitted by <strong>${Utils.escapeHtml(defaultWorker)}</strong> on <strong>${Utils.formatDate(defaultDate)}</strong>.
+                  </div>
+                ` : isEarly ? `
                   <div class="alert-warning-box">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                     <div>
-                      <strong>Early Completion Warning:</strong>
-                      <p style="margin: 2px 0 0 0; font-size: 0.88rem;">This maintenance is scheduled for <strong>${Utils.formatDate(asset.dueDate)}</strong>. Are you sure you want to mark it as completed early today (${Utils.formatDate(todayStr)})?</p>
+                      <strong>Early Completion Notice:</strong>
+                      <p style="margin: 2px 0 0 0; font-size: 0.88rem;">Scheduled for <strong>${Utils.formatDate(asset.dueDate)}</strong>.</p>
                     </div>
                   </div>
                 ` : `
-                  <p style="font-size: 0.95rem; color: #374151;">Marking service as completed for <strong>${Utils.escapeHtml(asset.name)}</strong> at <strong>${Utils.escapeHtml(asset.storeName)}</strong>.</p>
+                  <p style="font-size: 0.95rem; color: #374151;">Reviewing service for <strong>${Utils.escapeHtml(asset.name)}</strong> (${Utils.escapeHtml(asset.storeName)}).</p>
                 `
               }
 
               <div class="form-group" style="margin-top: 16px;">
                 <label class="form-label">Completion Date <span class="required">*</span></label>
-                <input type="date" id="overrideCompDate" class="form-control" required value="${todayStr}" />
-                <small class="form-help">Select the date when maintenance was performed.</small>
+                <input type="date" id="overrideCompDate" class="form-control" required value="${defaultDate}" />
+                <small class="form-help">Auto-filled with employee completed date (editable by Admin).</small>
               </div>
 
               <div class="form-group">
-                <label class="form-label">Completed By (Worker / Admin Name) <span class="required">*</span></label>
-                <input type="text" id="overrideWorkerName" class="form-control" required value="System Administrator (Admin)" placeholder="Enter name..." />
+                <label class="form-label">Completed By (Worker / Technician Name) <span class="required">*</span></label>
+                <input type="text" id="overrideWorkerName" class="form-control" required value="${Utils.escapeHtml(defaultWorker)}" placeholder="Enter name..." />
               </div>
 
               <div class="form-group">
-                <label class="form-label">Completion Notes & Technician Comments <span class="required">*</span></label>
-                <textarea id="overrideComments" class="form-control" rows="3" required placeholder="Describe work done, replaced parts, or technician notes..."></textarea>
+                <label class="form-label">Completion Notes & Employee Comments <span class="required">*</span></label>
+                <textarea id="overrideComments" class="form-control" rows="3" required placeholder="Describe work done...">${Utils.escapeHtml(defaultComments)}</textarea>
               </div>
+
+              ${
+                defaultPhoto ? `
+                  <div class="form-group">
+                    <label class="form-label">Uploaded Proof Photo:</label>
+                    <div>
+                      <img src="${Utils.escapeHtml(defaultPhoto)}" style="max-height: 120px; border-radius: 6px; border: 1px solid #cbd5e1;" alt="Proof Photo" />
+                    </div>
+                  </div>
+                ` : ''
+              }
 
               <div class="form-group">
                 <label class="form-label">Admin Reason / Justification <span class="required">*</span></label>
-                <input type="text" id="overrideReason" class="form-control" required placeholder="e.g. Early routine inspection / Emergency repair verified" value="${isEarly ? 'Early maintenance performed ahead of schedule' : 'Routine scheduled completion'}" />
+                <input type="text" id="overrideReason" class="form-control" required placeholder="e.g. Employee completed verified / Routine inspection" value="${latestRecord ? 'Verified employee maintenance task' : 'Routine completion'}" />
               </div>
             </div>
 
-            <div class="modal-footer">
+            <div class="modal-footer" style="flex-wrap: wrap; gap: 8px;">
               <button type="button" class="btn btn-secondary" onclick="App.closeModal('overrideModal')">Cancel</button>
-              <button type="submit" class="btn btn-primary">Confirm & Mark Completed</button>
+              ${
+                asset.isCompleted ? `
+                  <button type="button" class="btn btn-danger" onclick="App.handleMarkAsNotComplete('${asset.id}')">
+                    Mark as Not Complete (Reopen Task)
+                  </button>
+                ` : ''
+              }
+              <button type="submit" class="btn btn-primary">Confirm & Keep Completed</button>
             </div>
           </form>
         </div>
@@ -361,6 +391,40 @@ const App = {
     `;
 
     this.showModal(modalHtml);
+  },
+
+  handleMarkAsNotComplete(assetId) {
+    const asset = storage.getAssetById(assetId);
+    if (!asset) return;
+
+    const reason = prompt('Admin Rejection Reason (Store staff will see this notice on their checklist):', 'Work description or proof photo incomplete. Please re-inspect and re-submit.');
+    if (reason === null) return; // User cancelled prompt
+
+    asset.isCompleted = false;
+    asset.rejectionReason = reason.trim();
+    storage.saveAsset(asset);
+
+    storage.logActivity(
+      'Admin Reopened Task (Not Complete)',
+      `Admin marked task as NOT complete for ${asset.name}. Reason: "${asset.rejectionReason}"`,
+      asset.storeName,
+      asset.name,
+      'System Admin',
+      'Admin'
+    );
+
+    storage.addNotification({
+      message: `⚠️ Admin marked ${asset.name} as NOT complete. Reason: "${asset.rejectionReason}"`,
+      assetId: asset.id,
+      assetName: asset.name,
+      storeName: asset.storeName,
+      userName: 'System Admin',
+      userRole: 'Admin'
+    });
+
+    Utils.showToast(`Task for "${asset.name}" marked as NOT COMPLETE and reopened for store staff!`, 'warning');
+    this.closeModal('overrideModal');
+    this.renderCurrentView();
   },
 
   handleSaveOverride(event, assetId) {
