@@ -337,6 +337,7 @@ const AssetsView = {
                     <option value="Every 2 Months" ${asset && asset.cycle === 'Every 2 Months' ? 'selected' : ''}>Every 2 Months</option>
                     <option value="Every 3 Months" ${asset && asset.cycle === 'Every 3 Months' ? 'selected' : ''}>Every 3 Months</option>
                     <option value="Every 6 Months" ${asset && asset.cycle === 'Every 6 Months' ? 'selected' : ''}>Every 6 Months</option>
+                    <option value="Every 9 Months" ${asset && asset.cycle === 'Every 9 Months' ? 'selected' : ''}>Every 9 Months</option>
                     <option value="Yearly" ${asset && asset.cycle === 'Yearly' ? 'selected' : ''}>Yearly</option>
                     <option value="Custom" ${asset && asset.cycle === 'Custom' ? 'selected' : ''}>Custom Days</option>
                   </select>

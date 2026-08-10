@@ -117,6 +117,9 @@ const Utils = {
       case 'Every 6 Months':
         d.setMonth(d.getMonth() + 6);
         break;
+      case 'Every 9 Months':
+        d.setMonth(d.getMonth() + 9);
+        break;
       case 'Yearly':
         d.setFullYear(d.getFullYear() + 1);
         break;

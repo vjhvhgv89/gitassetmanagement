@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS public.assets (
     store_name VARCHAR(255) NOT NULL,
     location VARCHAR(255) NOT NULL,
     due_date DATE NOT NULL,
-    cycle VARCHAR(50) NOT NULL CHECK (cycle IN ('Weekly', 'Monthly', 'Every 2 Months', 'Every 3 Months', 'Every 6 Months', 'Yearly', 'No Repeat', 'Custom')),
+    cycle VARCHAR(50) NOT NULL CHECK (cycle IN ('Weekly', 'Monthly', 'Every 2 Months', 'Every 3 Months', 'Every 6 Months', 'Every 9 Months', 'Yearly', 'No Repeat', 'Custom')),
     custom_days INTEGER DEFAULT 30,
     condition VARCHAR(50) DEFAULT 'Good' CHECK (condition IN ('Excellent', 'Good', 'Needs Repair', 'Under Maintenance', 'Damaged', 'Retired')),
     cost NUMERIC(12, 2) DEFAULT 0.00,
