@@ -1375,13 +1375,26 @@ a:hover {
 .image-input-choice {
   display: flex;
   gap: 12px;
+  align-items: center;
+}
+.asset-image-uploader-card {
+  border: 1px dashed var(--border-color);
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  transition: border-color 0.2s ease;
+}
+.asset-image-uploader-card:hover {
+  border-color: var(--primary-blue);
 }
 .img-preview-box {
-  width: 140px;
-  height: 100px;
+  width: 110px;
+  height: 110px;
   border-radius: var(--radius-md);
   object-fit: cover;
   border: 1px solid var(--border-color);
+  background-color: var(--bg-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 /* --------------------------------------------------------------------------

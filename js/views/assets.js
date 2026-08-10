@@ -360,16 +360,33 @@ const AssetsView = {
                   <input type="number" id="assetCost" class="form-control" step="0.01" placeholder="e.g. 500" value="${asset ? asset.cost || '' : ''}" />
                 </div>
 
-                <!-- Image Selection: URL or Upload -->
+                <!-- Clean Asset Image Selection Card -->
                 <div class="form-group" style="grid-column: span 2;">
-                  <label class="form-label">Asset Image (File Upload or Image URL)</label>
-                  <div class="image-input-choice">
-                    <input type="text" id="assetImageUrl" class="form-control" placeholder="Paste Image URL..." value="${Utils.escapeHtml(asset ? asset.imageUrl : '')}" oninput="AssetsView.updateImagePreview(this.value)" />
-                    <span style="font-size: 0.85rem; color: #6b7280; align-self: center;">OR</span>
-                    <input type="file" id="assetImageFile" class="form-control" accept="image/*" onchange="AssetsView.handleFileUpload(this)" />
-                  </div>
-                  <div class="image-preview-container" style="margin-top: 12px;">
-                    <img id="imagePreview" src="${Utils.escapeHtml(asset ? asset.imageUrl : Utils.getDefaultAssetImage())}" alt="Preview" class="img-preview-box" onerror="this.src=Utils.getDefaultAssetImage()" />
+                  <label class="form-label">Asset Image (File Upload or Web URL)</label>
+                  <input type="hidden" id="assetImageData" value="${Utils.escapeHtml(asset ? asset.imageUrl || '' : '')}" />
+
+                  <div class="asset-image-uploader-card">
+                    <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+                      <div style="width: 110px; height: 110px; border-radius: 8px; overflow: hidden; border: 1px solid #cbd5e1; background: #ffffff; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                        <img id="imagePreview" src="${Utils.escapeHtml(asset ? asset.imageUrl || Utils.getDefaultAssetImage() : Utils.getDefaultAssetImage())}" alt="Preview" class="img-preview-box" onerror="this.src=Utils.getDefaultAssetImage()" />
+                      </div>
+
+                      <div style="flex: 1; min-width: 240px;">
+                        <div style="margin-bottom: 8px;">
+                          <label style="font-size: 0.8rem; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Upload from Device / Camera:</label>
+                          <input type="file" id="assetImageFile" class="form-control" accept="image/*" onchange="AssetsView.handleFileUpload(this)" style="padding: 4px 8px; font-size: 0.85rem;" />
+                        </div>
+
+                        <div>
+                          <label style="font-size: 0.8rem; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Or Enter Web Image URL:</label>
+                          <input type="text" id="assetImageUrlInput" class="form-control" placeholder="https://example.com/photo.jpg" value="${asset && asset.imageUrl && !asset.imageUrl.startsWith('data:') ? Utils.escapeHtml(asset.imageUrl) : ''}" oninput="AssetsView.handleUrlInput(this.value)" />
+                        </div>
+
+                        <div id="imageUploadStatus" style="margin-top: 6px; font-size: 0.76rem; color: #64748b;">
+                          ${asset && asset.imageUrl && asset.imageUrl.startsWith('data:') ? '📷 Custom uploaded photo loaded.' : 'Select a photo file or enter an image URL.'}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -405,10 +422,14 @@ const AssetsView = {
     }
   },
 
-  updateImagePreview(url) {
+  handleUrlInput(url) {
     const img = document.getElementById('imagePreview');
-    if (img && url) {
-      img.src = url;
+    const dataInput = document.getElementById('assetImageData');
+    const status = document.getElementById('imageUploadStatus');
+    if (url) {
+      if (dataInput) dataInput.value = url;
+      if (img) img.src = url;
+      if (status) status.innerHTML = '🌐 Web image URL loaded.';
     }
   },
 
@@ -417,8 +438,15 @@ const AssetsView = {
       const reader = new FileReader();
       reader.onload = function (e) {
         const dataUrl = e.target.result;
-        document.getElementById('assetImageUrl').value = dataUrl;
-        document.getElementById('imagePreview').src = dataUrl;
+        const dataInput = document.getElementById('assetImageData');
+        const urlInput = document.getElementById('assetImageUrlInput');
+        const img = document.getElementById('imagePreview');
+        const status = document.getElementById('imageUploadStatus');
+
+        if (dataInput) dataInput.value = dataUrl;
+        if (urlInput) urlInput.value = ''; // Do NOT fill text input with raw 1000-char base64 string!
+        if (img) img.src = dataUrl;
+        if (status) status.innerHTML = '✓ Photo loaded successfully from device.';
       };
       reader.readAsDataURL(input.files[0]);
     }
@@ -446,7 +474,7 @@ const AssetsView = {
     const condition = document.getElementById('assetCondition').value;
     const serialId = document.getElementById('assetSerial').value.trim() || ('AST-' + Math.floor(100 + Math.random() * 900));
     const cost = parseFloat(document.getElementById('assetCost').value) || 0;
-    const imageUrl = document.getElementById('assetImageUrl').value.trim() || Utils.getDefaultAssetImage();
+    const imageUrl = document.getElementById('assetImageData').value.trim() || Utils.getDefaultAssetImage();
     const description = document.getElementById('assetDescription').value.trim();
 
     const store = storage.getStores().find(s => s.id === storeId);
