@@ -77,7 +77,7 @@ const StoresView = {
                 <th>Email</th>
                 <th>Status</th>
                 <th>Date Created</th>
-                <th style="text-align: right;">Actions</th>
+                <th style="text-align: right; min-width: 250px;">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -109,7 +109,7 @@ const StoresView = {
                                 : `<button class="btn btn-primary btn-sm" title="Activate" onclick="StoresView.toggleStatus('${store.id}', 'Active')">Activate</button>`
                             }
                             <button class="btn btn-outline btn-sm" title="Edit Store" onclick="StoresView.openStoreModal('${store.id}')">Edit</button>
-                            <button class="btn btn-outline btn-sm" title="Reset Password" onclick="StoresView.promptResetPassword('${store.id}')">Reset Pass</button>
+                            <button class="btn btn-outline btn-sm" title="Reset Password" onclick="StoresView.openResetPasswordModal('${store.id}')">🔑 Reset Password</button>
                             <button class="btn btn-danger btn-sm" title="Delete Store" onclick="StoresView.deleteStore('${store.id}')">Delete</button>
                           </div>
                         </td>
@@ -155,17 +155,87 @@ const StoresView = {
     }
   },
 
-  promptResetPassword(storeId) {
+  openResetPasswordModal(storeId) {
     const store = storage.getStores().find(s => s.id === storeId);
     if (!store) return;
 
-    const newPass = prompt(`Reset Password for store username "${store.username}" (${store.name}):`, 'newpass123');
-    if (newPass !== null && newPass.trim() !== '') {
-      store.password = newPass.trim();
-      storage.saveStore(store);
-      storage.logActivity('Admin Reset Store Password', `Reset password for store account username: ${store.username}`, store.name, 'N/A');
-      Utils.showToast(`Password for "${store.name}" updated successfully!`, 'success');
+    const modalHtml = `
+      <div class="modal-overlay" id="resetPassModal">
+        <div class="modal-card" style="max-width: 480px;">
+          <div class="modal-header">
+            <h3>🔑 Reset Store Password</h3>
+            <button class="modal-close-btn" onclick="App.closeModal('resetPassModal')">&times;</button>
+          </div>
+          <form onsubmit="StoresView.handleSaveResetPassword(event, '${store.id}')">
+            <div class="modal-body">
+              <div style="padding: 12px 14px; background: #f8fafc; border-radius: 8px; margin-bottom: 18px; border: 1px solid #cbd5e1; font-size: 0.88rem; color: #334155;">
+                <div>Store: <strong>${Utils.escapeHtml(store.name)}</strong> (${Utils.escapeHtml(store.code)})</div>
+                <div style="margin-top: 4px;">Username: <code>${Utils.escapeHtml(store.username)}</code></div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">New Password <span class="required">*</span></label>
+                <div style="position: relative;">
+                  <input type="password" id="resetNewPassword" class="form-control" required placeholder="Enter new password..." value="store123" style="padding-right: 45px;" />
+                  <button type="button" onclick="StoresView.togglePasswordVisibility()" title="Show/Hide Password" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #64748b; font-size: 1.1rem;">👁️</button>
+                </div>
+              </div>
+
+              <div style="margin-top: 8px;">
+                <button type="button" class="btn btn-sm btn-outline" onclick="StoresView.generateRandomPassword()">
+                  ⚡ Auto-Generate Secure Password
+                </button>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" onclick="App.closeModal('resetPassModal')">Cancel</button>
+              <button type="submit" class="btn btn-primary">Update Password</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+
+    App.showModal(modalHtml);
+  },
+
+  togglePasswordVisibility() {
+    const input = document.getElementById('resetNewPassword');
+    if (input) {
+      input.type = input.type === 'password' ? 'text' : 'password';
     }
+  },
+
+  generateRandomPassword() {
+    const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+    let randPass = 'store';
+    for (let i = 0; i < 4; i++) {
+      randPass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const input = document.getElementById('resetNewPassword');
+    if (input) {
+      input.value = randPass;
+      input.type = 'text';
+    }
+  },
+
+  handleSaveResetPassword(event, storeId) {
+    event.preventDefault();
+    const store = storage.getStores().find(s => s.id === storeId);
+    if (!store) return;
+
+    const newPass = document.getElementById('resetNewPassword').value.trim();
+    if (!newPass) {
+      alert('Please enter a valid password.');
+      return;
+    }
+
+    store.password = newPass;
+    storage.saveStore(store);
+    storage.logActivity('Admin Reset Store Password', `Reset password for store account username: ${store.username}`, store.name, 'N/A');
+    Utils.showToast(`Password for "${store.name}" updated successfully!`, 'success');
+    App.closeModal('resetPassModal');
+    App.renderCurrentView();
   },
 
   openStoreModal(storeId = null) {
