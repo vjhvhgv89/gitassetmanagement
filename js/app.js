@@ -304,15 +304,16 @@ const App = {
     if (!asset) return;
 
     const todayStr = Utils.getTodayStr();
-    const history = storage.getMaintenanceHistory(asset.id);
+    const history = storage.getMaintenanceHistory(asset.id || assetId);
     const latestRecord = history[0];
 
     const storeObj = storage.getStores().find(s => s.id === asset.storeId || s.name === asset.storeName);
-    const fallbackWorker = storeObj ? `${storeObj.managerName} (${storeObj.name})` : 'Store Staff';
+    const storeManagerFallback = storeObj && storeObj.managerName ? `${storeObj.managerName} (${storeObj.name})` : '';
+    const fallbackWorker = asset.lastCompletedBy || storeManagerFallback || 'Mario (Store Staff)';
 
-    const defaultDate = latestRecord ? latestRecord.completedDate : (asset.lastCompletedDate && asset.lastCompletedDate !== 'None' ? asset.lastCompletedDate : todayStr);
-    const defaultWorker = latestRecord && latestRecord.completedBy ? latestRecord.completedBy : (asset.lastCompletedBy || fallbackWorker);
-    const defaultComments = latestRecord ? latestRecord.comments : '';
+    const defaultDate = (latestRecord && latestRecord.completedDate) ? latestRecord.completedDate : (asset.lastCompletedDate && asset.lastCompletedDate !== 'None' ? asset.lastCompletedDate : todayStr);
+    const defaultWorker = (latestRecord && latestRecord.completedBy) ? latestRecord.completedBy : fallbackWorker;
+    const defaultComments = (latestRecord && latestRecord.comments) ? latestRecord.comments : (asset.description || '');
     const defaultPhoto = (latestRecord && latestRecord.photos && latestRecord.photos[0]) ? latestRecord.photos[0] : asset.lastProofPhoto;
 
     const isEarly = new Date(asset.dueDate) > new Date(todayStr);

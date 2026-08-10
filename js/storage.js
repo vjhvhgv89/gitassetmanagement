@@ -237,8 +237,14 @@ class StorageManager {
   }
 
   getAssetById(assetId) {
+    if (!assetId) return null;
     const assets = this.getAssets();
-    return assets.find(a => a.id === assetId) || null;
+    const cleanId = String(assetId).replace(/^ast_/, '').trim();
+    return assets.find(a =>
+      a.id === assetId ||
+      String(a.id).replace(/^ast_/, '').trim() === cleanId ||
+      (a.serialId && String(a.serialId).trim() === String(assetId).trim())
+    ) || null;
   }
 
   saveAsset(asset) {
