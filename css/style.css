@@ -634,7 +634,9 @@ a:hover {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 8px;
+  white-space: nowrap;
+  flex-wrap: nowrap;
 }
 
 /* --------------------------------------------------------------------------
@@ -1706,7 +1708,7 @@ a:hover {
   }
 
   .action-btn-group {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 }
 

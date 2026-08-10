@@ -129,7 +129,7 @@ const DashboardView = {
                   <th>Store</th>
                   <th>Due Date</th>
                   <th>Status</th>
-                  <th style="text-align: right;">Action</th>
+                  <th style="text-align: right; min-width: 175px;">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -158,8 +158,10 @@ const DashboardView = {
                             </span>
                           </td>
                           <td style="text-align: right;">
-                            <button class="btn btn-secondary btn-sm" onclick="App.openOverrideModal('${asset.id}')">Complete</button>
-                            <button class="btn btn-outline btn-sm" onclick="App.showAssetDetails('${asset.id}')">Details</button>
+                            <div class="action-btn-group">
+                              <button class="btn btn-primary btn-sm" onclick="App.openOverrideModal('${asset.id}')">Complete</button>
+                              <button class="btn btn-outline btn-sm" onclick="App.showAssetDetails('${asset.id}')">Details</button>
+                            </div>
                           </td>
                         </tr>
                       `).join('')

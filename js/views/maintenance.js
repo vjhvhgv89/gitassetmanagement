@@ -94,7 +94,7 @@ const MaintenanceView = {
                 <th>Status</th>
                 <th>Last Completed</th>
                 <th>Next Schedule</th>
-                <th style="text-align: right;">Action</th>
+                <th style="text-align: right; min-width: 175px;">Action</th>
               </tr>
             </thead>
             <tbody>
