@@ -307,8 +307,11 @@ const App = {
     const history = storage.getMaintenanceHistory(asset.id);
     const latestRecord = history[0];
 
+    const storeObj = storage.getStores().find(s => s.id === asset.storeId || s.name === asset.storeName);
+    const fallbackWorker = storeObj ? `${storeObj.managerName} (${storeObj.name})` : 'Store Staff';
+
     const defaultDate = latestRecord ? latestRecord.completedDate : (asset.lastCompletedDate && asset.lastCompletedDate !== 'None' ? asset.lastCompletedDate : todayStr);
-    const defaultWorker = latestRecord ? latestRecord.completedBy : (asset.lastCompletedBy || 'System Administrator (Admin)');
+    const defaultWorker = latestRecord && latestRecord.completedBy ? latestRecord.completedBy : (asset.lastCompletedBy || fallbackWorker);
     const defaultComments = latestRecord ? latestRecord.comments : '';
     const defaultPhoto = (latestRecord && latestRecord.photos && latestRecord.photos[0]) ? latestRecord.photos[0] : asset.lastProofPhoto;
 
