@@ -271,31 +271,41 @@ const AssetsView = {
                 <!-- Required Fields -->
                 <div class="form-group">
                   <label class="form-label">Asset Name <span class="required">*</span></label>
-                  <input type="text" id="assetName" class="form-control" required placeholder="e.g. Receipt Printer HP-500" value="${Utils.escapeHtml(asset ? asset.name : '')}" />
+                  <input type="text" id="assetName" class="form-control" required placeholder="e.g. Double Deck Pizza Oven, Dough Mixer 50L, Walk-in Cooler" value="${Utils.escapeHtml(asset ? asset.name : '')}" />
                 </div>
 
                 ${(() => {
-                  const stdCategories = ['POS Hardware', 'Security', 'Facilities', 'Inventory Tools', 'Power & Electrical', 'IT Equipment', 'Store Furniture'];
+                  const stdCategories = [
+                    'Pizza Ovens & Baking Equipment',
+                    'Dough Preparation & Mixers',
+                    'Refrigeration & Cold Storage',
+                    'POS & Ordering Systems',
+                    'Kitchen Prep & Cutters',
+                    'Dining & Store Furniture',
+                    'HVAC & Exhaust Hoods',
+                    'Sanitation & Cleaning'
+                  ];
                   const isCustomCat = asset && asset.category && !stdCategories.includes(asset.category);
                   return `
                     <div class="form-group">
                       <label class="form-label">Category <span class="required">*</span></label>
                       <select id="assetCategory" class="form-control" required onchange="AssetsView.toggleCustomCategoryInput(this.value)">
                         <option value="">Select Category...</option>
-                        <option value="POS Hardware" ${asset && asset.category === 'POS Hardware' ? 'selected' : ''}>POS Hardware</option>
-                        <option value="Security" ${asset && asset.category === 'Security' ? 'selected' : ''}>Security</option>
-                        <option value="Facilities" ${asset && asset.category === 'Facilities' ? 'selected' : ''}>Facilities</option>
-                        <option value="Inventory Tools" ${asset && asset.category === 'Inventory Tools' ? 'selected' : ''}>Inventory Tools</option>
-                        <option value="Power & Electrical" ${asset && asset.category === 'Power & Electrical' ? 'selected' : ''}>Power & Electrical</option>
-                        <option value="IT Equipment" ${asset && asset.category === 'IT Equipment' ? 'selected' : ''}>IT Equipment</option>
-                        <option value="Store Furniture" ${asset && asset.category === 'Store Furniture' ? 'selected' : ''}>Store Furniture</option>
+                        <option value="Pizza Ovens & Baking Equipment" ${asset && asset.category === 'Pizza Ovens & Baking Equipment' ? 'selected' : ''}>Pizza Ovens & Baking Equipment</option>
+                        <option value="Dough Preparation & Mixers" ${asset && asset.category === 'Dough Preparation & Mixers' ? 'selected' : ''}>Dough Preparation & Mixers</option>
+                        <option value="Refrigeration & Cold Storage" ${asset && asset.category === 'Refrigeration & Cold Storage' ? 'selected' : ''}>Refrigeration & Cold Storage</option>
+                        <option value="POS & Ordering Systems" ${asset && asset.category === 'POS & Ordering Systems' ? 'selected' : ''}>POS & Ordering Systems</option>
+                        <option value="Kitchen Prep & Cutters" ${asset && asset.category === 'Kitchen Prep & Cutters' ? 'selected' : ''}>Kitchen Prep & Cutters</option>
+                        <option value="Dining & Store Furniture" ${asset && asset.category === 'Dining & Store Furniture' ? 'selected' : ''}>Dining & Store Furniture</option>
+                        <option value="HVAC & Exhaust Hoods" ${asset && asset.category === 'HVAC & Exhaust Hoods' ? 'selected' : ''}>HVAC & Exhaust Hoods</option>
+                        <option value="Sanitation & Cleaning" ${asset && asset.category === 'Sanitation & Cleaning' ? 'selected' : ''}>Sanitation & Cleaning</option>
                         <option value="Custom" ${isCustomCat ? 'selected' : ''}>+ Add Custom Category...</option>
                       </select>
                     </div>
 
                     <div class="form-group" id="customCategoryWrapper" style="display: ${isCustomCat ? 'block' : 'none'};">
                       <label class="form-label">Type Custom Category Name <span class="required">*</span></label>
-                      <input type="text" id="assetCustomCategory" class="form-control" placeholder="e.g. Refrigeration, Audio System, HVAC, Vehicle" value="${isCustomCat ? Utils.escapeHtml(asset.category) : ''}" />
+                      <input type="text" id="assetCustomCategory" class="form-control" placeholder="e.g. Delivery Bike, Cheese Shredder, Deep Fryer, Warmer" value="${isCustomCat ? Utils.escapeHtml(asset.category) : ''}" />
                     </div>
                   `;
                 })()}

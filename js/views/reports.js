@@ -74,11 +74,14 @@ const ReportsView = {
             <label class="form-label-inline">Category Filter:</label>
             <select class="form-control" onchange="ReportsView.handleFilterCategory(this.value)">
               <option value="ALL" ${this.filterCategory === 'ALL' ? 'selected' : ''}>All Categories</option>
-              <option value="POS Hardware">POS Hardware</option>
-              <option value="Security">Security</option>
-              <option value="Facilities">Facilities</option>
-              <option value="Inventory Tools">Inventory Tools</option>
-              <option value="Power & Electrical">Power & Electrical</option>
+              <option value="Pizza Ovens & Baking Equipment">Pizza Ovens & Baking Equipment</option>
+              <option value="Dough Preparation & Mixers">Dough Preparation & Mixers</option>
+              <option value="Refrigeration & Cold Storage">Refrigeration & Cold Storage</option>
+              <option value="POS & Ordering Systems">POS & Ordering Systems</option>
+              <option value="Kitchen Prep & Cutters">Kitchen Prep & Cutters</option>
+              <option value="Dining & Store Furniture">Dining & Store Furniture</option>
+              <option value="HVAC & Exhaust Hoods">HVAC & Exhaust Hoods</option>
+              <option value="Sanitation & Cleaning">Sanitation & Cleaning</option>
             </select>
           </div>
         </div>
