@@ -21,6 +21,12 @@ const EmpDetailsView = {
   renderModalContent(asset) {
     const statusInfo = Utils.calculateStatus(asset);
     const history = storage.getMaintenanceHistory(asset.id);
+    const latestRecord = history[0];
+    const displayLastCompletedDate = latestRecord ? latestRecord.completedDate : asset.lastCompletedDate;
+    const displayImage = (latestRecord && latestRecord.photos && latestRecord.photos[0])
+      ? latestRecord.photos[0]
+      : (asset.imageUrl || Utils.getDefaultAssetImage());
+
     const comments = storage.getComments(asset.id);
 
     const todayStr = Utils.getTodayStr();
@@ -44,12 +50,12 @@ const EmpDetailsView = {
             <!-- TOP SPEC GRID -->
             <div class="details-spec-grid">
               <div class="asset-image-box">
-                <img src="${Utils.escapeHtml(asset.imageUrl || Utils.getDefaultAssetImage())}" alt="Asset Image" class="asset-large-img" onerror="this.src=Utils.getDefaultAssetImage()" />
+                <img src="${Utils.escapeHtml(displayImage)}" alt="Asset Image" class="asset-large-img" onerror="this.src=Utils.getDefaultAssetImage()" />
                 
                 <div style="margin-top: 16px;">
                   ${
                     asset.isCompleted
-                      ? `<div class="completed-done-banner">✓ Maintenance Completed on ${Utils.formatDate(asset.lastCompletedDate)}</div>`
+                      ? `<div class="completed-done-banner">✓ Maintenance Completed on ${Utils.formatDate(displayLastCompletedDate)}</div>`
                       : `
                         <button class="btn btn-primary btn-block btn-lg" onclick="App.closeModal('empAssetDetailsModal'); App.openEmpCompletionModal('${asset.id}')">
                           Mark Service as Completed
@@ -95,11 +101,11 @@ const EmpDetailsView = {
                   </div>
                   <div>
                     <span class="spec-label">Last Completed Date:</span>
-                    <strong class="spec-val">${Utils.formatDate(asset.lastCompletedDate)}</strong>
+                    <strong class="spec-val" style="color: #059669;">${Utils.formatDate(displayLastCompletedDate)}</strong>
                   </div>
                   <div>
                     <span class="spec-label">Next Scheduled Due:</span>
-                    <strong class="spec-val">${Utils.formatDate(Utils.calculateNextDueDate(asset.dueDate, asset.cycle, asset.customDays))}</strong>
+                    <strong class="spec-val">${Utils.formatDate(asset.nextDueDate || Utils.calculateNextDueDate(asset.dueDate, asset.cycle, asset.customDays))}</strong>
                   </div>
                 </div>
 

@@ -330,6 +330,17 @@ const App = {
               }
 
               <div class="form-group" style="margin-top: 16px;">
+                <label class="form-label">Completion Date <span class="required">*</span></label>
+                <input type="date" id="overrideCompDate" class="form-control" required value="${todayStr}" />
+                <small class="form-help">Select the date when maintenance was performed.</small>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Completed By (Worker / Admin Name) <span class="required">*</span></label>
+                <input type="text" id="overrideWorkerName" class="form-control" required value="System Administrator (Admin)" placeholder="Enter name..." />
+              </div>
+
+              <div class="form-group">
                 <label class="form-label">Completion Notes & Technician Comments <span class="required">*</span></label>
                 <textarea id="overrideComments" class="form-control" rows="3" required placeholder="Describe work done, replaced parts, or technician notes..."></textarea>
               </div>
@@ -357,48 +368,164 @@ const App = {
     const asset = storage.getAssetById(assetId);
     if (!asset) return;
 
+    const compDate = document.getElementById('overrideCompDate').value || Utils.getTodayStr();
+    const workerName = document.getElementById('overrideWorkerName').value.trim() || 'System Administrator (Admin)';
     const comments = document.getElementById('overrideComments').value.trim();
     const overrideReason = document.getElementById('overrideReason').value.trim();
-    const todayStr = Utils.getTodayStr();
-    const isEarly = new Date(asset.dueDate) > new Date(todayStr);
+    const scheduledDueDate = asset.dueDate;
 
-    const nextDueDate = Utils.calculateNextDueDate(todayStr, asset.cycle, asset.customDays);
+    const diffTime = new Date(compDate) - new Date(scheduledDueDate);
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    const isLate = diffDays > 0;
+    const isEarly = diffDays < 0;
+
+    const nextDueDate = Utils.calculateNextDueDate(compDate, asset.cycle, asset.customDays);
 
     asset.isCompleted = true;
-    asset.lastCompletedDate = todayStr;
-    asset.lastCompletedBy = 'System Administrator (Admin)';
+    asset.lastCompletedDate = compDate;
+    asset.lastCompletedBy = workerName;
     asset.nextDueDate = nextDueDate;
 
     storage.saveAsset(asset);
 
     const mHistoryRecord = {
       assetId: asset.id,
-      completedDate: todayStr,
-      scheduledDueDate: asset.dueDate,
-      completedBy: 'System Administrator (Admin)',
+      completedDate: compDate,
+      scheduledDueDate: scheduledDueDate,
+      isLate: isLate,
+      daysLate: isLate ? diffDays : 0,
+      isEarly: isEarly,
+      daysEarly: isEarly ? Math.abs(diffDays) : 0,
+      completedBy: workerName,
       status: 'Completed',
       comments,
       photos: asset.imageUrl ? [asset.imageUrl] : [],
-      isOverride: isEarly,
+      isOverride: true,
       overrideReason
     };
     storage.addMaintenanceRecord(mHistoryRecord);
 
     const actionName = isEarly ? 'Admin Early Maintenance Override' : 'Admin Completed Maintenance';
-    const logDetails = `Completed maintenance for ${asset.name}. Notes: "${comments}". Next due date: ${nextDueDate}`;
-    storage.logActivity(actionName, logDetails, asset.storeName, asset.name, 'System Admin', 'Admin');
+    const logDetails = `Completed maintenance for ${asset.name} on ${compDate}. Notes: "${comments}". Next due date: ${nextDueDate}`;
+    storage.logActivity(actionName, logDetails, asset.storeName, asset.name, workerName, 'Admin');
 
     storage.addNotification({
-      message: `Admin completed maintenance for ${asset.name}. Next service due: ${Utils.formatDate(nextDueDate)}`,
+      message: `Admin completed maintenance for ${asset.name} on ${compDate}. Next service due: ${Utils.formatDate(nextDueDate)}`,
       assetId: asset.id,
       assetName: asset.name,
       storeName: asset.storeName,
-      userName: 'System Admin',
+      userName: workerName,
       userRole: 'Admin'
     });
 
     Utils.showToast(`Maintenance for "${asset.name}" marked completed!`, 'success');
     this.closeModal('overrideModal');
+    this.renderCurrentView();
+  },
+
+  // Admin Edit Maintenance Record Modal
+  openEditHistoryModal(historyId) {
+    if (!Auth.isAdmin()) {
+      alert('Security Error: Only Admin can edit completion records.');
+      return;
+    }
+
+    const allHistory = storage.getMaintenanceHistory();
+    const record = allHistory.find(h => h.id === historyId);
+    if (!record) return;
+
+    const asset = storage.getAssetById(record.assetId);
+
+    const modalHtml = `
+      <div class="modal-overlay" id="editHistoryModal">
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3>Update Maintenance Record & Completion Date</h3>
+            <button class="modal-close-btn" onclick="App.closeModal('editHistoryModal')">&times;</button>
+          </div>
+          <form onsubmit="App.handleSaveEditHistory(event, '${record.id}')">
+            <div class="modal-body">
+              <p style="font-size: 0.95rem; color: #374151; margin-bottom: 16px;">
+                Updating completion record for <strong>${Utils.escapeHtml(asset ? asset.name : 'Equipment')}</strong>.
+              </p>
+
+              <div class="form-group">
+                <label class="form-label">Completion Date <span class="required">*</span></label>
+                <input type="date" id="editHistCompDate" class="form-control" required value="${record.completedDate}" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Scheduled Due Date</label>
+                <input type="date" id="editHistScheduledDate" class="form-control" value="${record.scheduledDueDate || ''}" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Completed By (Worker / Technician Name) <span class="required">*</span></label>
+                <input type="text" id="editHistWorkerName" class="form-control" required value="${Utils.escapeHtml(record.completedBy)}" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Maintenance Notes & Comments <span class="required">*</span></label>
+                <textarea id="editHistComments" class="form-control" rows="3" required>${Utils.escapeHtml(record.comments)}</textarea>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" onclick="App.closeModal('editHistoryModal')">Cancel</button>
+              <button type="submit" class="btn btn-primary">Save & Update Record</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+
+    this.showModal(modalHtml);
+  },
+
+  handleSaveEditHistory(event, historyId) {
+    event.preventDefault();
+    const allHistory = storage.getMaintenanceHistory();
+    const record = allHistory.find(h => h.id === historyId);
+    if (!record) return;
+
+    const compDate = document.getElementById('editHistCompDate').value;
+    const scheduledDate = document.getElementById('editHistScheduledDate').value || record.scheduledDueDate;
+    const workerName = document.getElementById('editHistWorkerName').value.trim();
+    const comments = document.getElementById('editHistComments').value.trim();
+
+    const diffTime = new Date(compDate) - new Date(scheduledDate);
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    const isLate = diffDays > 0;
+    const isEarly = diffDays < 0;
+
+    record.completedDate = compDate;
+    record.scheduledDueDate = scheduledDate;
+    record.completedBy = workerName;
+    record.comments = comments;
+    record.isLate = isLate;
+    record.daysLate = isLate ? diffDays : 0;
+    record.isEarly = isEarly;
+    record.daysEarly = isEarly ? Math.abs(diffDays) : 0;
+
+    storage.updateMaintenanceRecord(record);
+
+    // Sync Asset's lastCompletedDate with latest completion record
+    const asset = storage.getAssetById(record.assetId);
+    if (asset) {
+      const assetHistory = storage.getMaintenanceHistory(asset.id);
+      if (assetHistory.length > 0) {
+        asset.lastCompletedDate = assetHistory[0].completedDate;
+        asset.lastCompletedBy = assetHistory[0].completedBy;
+        if (assetHistory[0].photos && assetHistory[0].photos[0]) {
+          asset.lastProofPhoto = assetHistory[0].photos[0];
+          asset.imageUrl = assetHistory[0].photos[0];
+        }
+        storage.saveAsset(asset);
+      }
+    }
+
+    Utils.showToast('Maintenance record updated successfully!', 'success');
+    this.closeModal('editHistoryModal');
     this.renderCurrentView();
   },
 

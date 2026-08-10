@@ -9,7 +9,14 @@ const AssetDetailsView = {
     if (!asset) return '';
 
     const statusInfo = Utils.calculateStatus(asset);
-    const history = storage.getMaintenanceHistory(assetId);
+    const history = storage.getMaintenanceHistory(assetId); // Sorted by completedDate descending
+    const latestRecord = history[0];
+    const displayLastCompletedDate = latestRecord ? latestRecord.completedDate : asset.lastCompletedDate;
+    const displayLastCompletedBy = latestRecord ? latestRecord.completedBy : (asset.lastCompletedBy || 'N/A');
+    const displayImage = (latestRecord && latestRecord.photos && latestRecord.photos[0])
+      ? latestRecord.photos[0]
+      : (asset.imageUrl || Utils.getDefaultAssetImage());
+
     const comments = storage.getComments(assetId);
     const logs = storage.getActivityLogs().filter(l => l.asset === asset.name || l.details.includes(asset.name) || l.details.includes(asset.serialId));
 
@@ -29,7 +36,7 @@ const AssetDetailsView = {
             <!-- HEADER SPEC CARDS -->
             <div class="details-spec-grid">
               <div class="asset-image-box">
-                <img src="${Utils.escapeHtml(asset.imageUrl || Utils.getDefaultAssetImage())}" alt="Asset Image" class="asset-large-img" onerror="this.src=Utils.getDefaultAssetImage()" />
+                <img src="${Utils.escapeHtml(displayImage)}" alt="Asset Image" class="asset-large-img" onerror="this.src=Utils.getDefaultAssetImage()" />
                 <div style="margin-top: 12px; display: flex; gap: 8px;">
                   <button class="btn btn-primary btn-sm" style="flex: 1;" onclick="App.closeModal('assetDetailsModal'); App.openOverrideModal('${asset.id}')">Complete Maintenance</button>
                   <button class="btn btn-outline btn-sm" onclick="App.closeModal('assetDetailsModal'); AssetsView.openAssetModal('${asset.id}')">Edit Specs</button>
@@ -73,11 +80,11 @@ const AssetDetailsView = {
                   </div>
                   <div>
                     <span class="spec-label">Last Completed Date:</span>
-                    <strong class="spec-val">${Utils.formatDate(asset.lastCompletedDate)}</strong>
+                    <strong class="spec-val" style="color: #059669;">${Utils.formatDate(displayLastCompletedDate)}</strong>
                   </div>
                   <div>
                     <span class="spec-label">Next Scheduled Due:</span>
-                    <strong class="spec-val">${Utils.formatDate(Utils.calculateNextDueDate(asset.dueDate, asset.cycle, asset.customDays))}</strong>
+                    <strong class="spec-val">${Utils.formatDate(asset.nextDueDate || Utils.calculateNextDueDate(asset.dueDate, asset.cycle, asset.customDays))}</strong>
                   </div>
                 </div>
 
@@ -117,7 +124,10 @@ const AssetDetailsView = {
                             <strong style="margin-left: 8px;">Completed on ${Utils.formatDate(item.completedDate)}</strong>
                             ${item.isOverride ? `<span class="badge badge-due-soon" style="margin-left: 8px;">Admin Override</span>` : ''}
                           </div>
-                          <span class="text-subtle">By ${Utils.escapeHtml(item.completedBy)}</span>
+                          <div>
+                            <span class="text-subtle">By ${Utils.escapeHtml(item.completedBy)}</span>
+                            <button class="btn btn-sm btn-outline" style="margin-left: 10px; padding: 2px 8px; font-size: 0.78rem;" onclick="App.closeModal('assetDetailsModal'); App.openEditHistoryModal('${item.id}')">Edit Date & Record</button>
+                          </div>
                         </div>
                         ${
                           item.scheduledDueDate ? `
@@ -131,8 +141,13 @@ const AssetDetailsView = {
                         ${item.isOverride && item.overrideReason ? `<div class="override-reason-box"><strong>Override Reason:</strong> ${Utils.escapeHtml(item.overrideReason)}</div>` : ''}
                         ${
                           item.photos && item.photos.length > 0
-                            ? `<div class="history-photos">
-                                ${item.photos.map(p => `<img src="${Utils.escapeHtml(p)}" class="history-photo-thumb" onclick="window.open('${Utils.escapeHtml(p)}', '_blank')" />`).join('')}
+                            ? `<div class="history-photos" style="margin-top: 8px;">
+                                ${item.photos.map(p => `
+                                  <div style="display: flex; flex-direction: column; align-items: flex-start;">
+                                    <img src="${Utils.escapeHtml(p)}" class="history-photo-thumb" onclick="window.open('${Utils.escapeHtml(p)}', '_blank')" />
+                                    <span style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">Uploaded Proof Photo</span>
+                                  </div>
+                                `).join('')}
                                </div>`
                             : ''
                         }

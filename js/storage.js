@@ -389,11 +389,12 @@ class StorageManager {
 
   // Maintenance History
   getMaintenanceHistory(assetId = null) {
-    const history = this.get(STORAGE_KEYS.MAINTENANCE_HISTORY);
+    let history = this.get(STORAGE_KEYS.MAINTENANCE_HISTORY);
     if (assetId) {
-      return history.filter(h => h.assetId === assetId);
+      history = history.filter(h => h.assetId === assetId);
     }
-    return history;
+    // Sort by completedDate descending (most recent completion date first!)
+    return history.sort((a, b) => new Date(b.completedDate || 0) - new Date(a.completedDate || 0));
   }
 
   addMaintenanceRecord(record) {
@@ -424,6 +425,37 @@ class StorageManager {
         if (error) console.error('Supabase Maintenance History Error:', error);
       });
     }
+  }
+
+  updateMaintenanceRecord(updatedRecord) {
+    let history = this.get(STORAGE_KEYS.MAINTENANCE_HISTORY);
+    const index = history.findIndex(h => h.id === updatedRecord.id);
+    if (index >= 0) {
+      history[index] = { ...history[index], ...updatedRecord };
+      this.set(STORAGE_KEYS.MAINTENANCE_HISTORY, history);
+
+      if (this.supabase) {
+        const payload = {
+          completed_date: updatedRecord.completedDate,
+          scheduled_due_date: updatedRecord.scheduledDueDate,
+          is_late: updatedRecord.isLate || false,
+          days_late: updatedRecord.daysLate || 0,
+          is_early: updatedRecord.isEarly || false,
+          days_early: updatedRecord.daysEarly || 0,
+          completed_by: updatedRecord.completedBy,
+          status: updatedRecord.status || 'Completed',
+          comments: updatedRecord.comments,
+          photos: updatedRecord.photos || [],
+          is_override: updatedRecord.isOverride || false,
+          override_reason: updatedRecord.overrideReason || ''
+        };
+
+        this.supabase.from('maintenance_history').update(payload).eq('id', updatedRecord.id).then(({ error }) => {
+          if (error) console.error('Supabase Update Maintenance History Error:', error);
+        });
+      }
+    }
+    return updatedRecord;
   }
 
   // Comments
