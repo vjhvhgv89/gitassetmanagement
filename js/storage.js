@@ -146,25 +146,35 @@ class StorageManager {
         this.set(STORAGE_KEYS.MAINTENANCE_HISTORY, mappedHistory);
       }
 
-      // 4. Sync Asset Comments from Supabase
-      const { data: dbComments, error: errComments } = await this.supabase.from('asset_comments').select('*').order('created_at', { ascending: true });
-      if (dbComments && Array.isArray(dbComments)) {
-        const commentsMap = {};
-        dbComments.forEach(c => {
-          const aId = c.asset_id;
-          if (aId) {
-            if (!commentsMap[aId]) commentsMap[aId] = [];
-            commentsMap[aId].push({
-              id: c.id,
-              user: c.user_name,
-              role: c.role,
-              text: c.text,
-              photoUrl: c.photo_url || null,
-              timestamp: c.created_at
-            });
-          }
-        });
-        this._saveCommentsMap(commentsMap);
+      // 4. Sync Asset Comments from Supabase (Merge gracefully with local storage)
+      try {
+        const { data: dbComments, error: errComments } = await this.supabase.from('asset_comments').select('*').order('created_at', { ascending: true });
+        if (dbComments && Array.isArray(dbComments) && dbComments.length > 0) {
+          const commentsMap = this._getCommentsMap();
+          dbComments.forEach(c => {
+            const aId = c.asset_id;
+            if (aId) {
+              if (!commentsMap[aId]) commentsMap[aId] = [];
+              const idx = commentsMap[aId].findIndex(item => item.id === c.id);
+              const cmtObj = {
+                id: c.id,
+                user: c.user_name,
+                role: c.role,
+                text: c.text,
+                photoUrl: c.photo_url || null,
+                timestamp: c.created_at
+              };
+              if (idx >= 0) {
+                commentsMap[aId][idx] = cmtObj;
+              } else {
+                commentsMap[aId].push(cmtObj);
+              }
+            }
+          });
+          this._saveCommentsMap(commentsMap);
+        }
+      } catch (errCmtSync) {
+        console.warn('Supabase Comment Sync Note:', errCmtSync);
       }
 
       if (window.App && typeof window.App.renderCurrentView === 'function') {
@@ -529,16 +539,19 @@ class StorageManager {
     this._saveCommentsMap(map);
 
     if (this.supabase) {
-      this.supabase.from('asset_comments').insert({
-        id: newCmt.id,
-        asset_id: assetId && assetId.includes('-') ? assetId : null,
-        user_name: user,
-        role: role === 'Store Employee' ? 'Store Manager' : role,
-        text,
-        photo_url: photoUrl || null
-      }).then(({ error }) => {
-        if (error) console.error('Supabase Comment Error:', error);
-      });
+      const isUuid = typeof assetId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(assetId);
+      if (isUuid) {
+        this.supabase.from('asset_comments').insert({
+          id: newCmt.id,
+          asset_id: assetId,
+          user_name: user,
+          role: role === 'Store Employee' ? 'Store Manager' : role,
+          text,
+          photo_url: photoUrl || null
+        }).then(({ error }) => {
+          if (error) console.error('Supabase Comment Error:', error);
+        });
+      }
     }
 
     return newCmt;
@@ -557,14 +570,17 @@ class StorageManager {
       this._saveCommentsMap(map);
 
       if (this.supabase) {
-        const updateObj = { text: newText };
-        if (newPhotoUrl !== undefined) updateObj.photo_url = newPhotoUrl || null;
-        this.supabase.from('asset_comments')
-          .update(updateObj)
-          .eq('id', commentId)
-          .then(({ error }) => {
-            if (error) console.error('Supabase Comment Update Error:', error);
-          });
+        const isCommentUuid = typeof commentId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(commentId);
+        if (isCommentUuid) {
+          const updateObj = { text: newText };
+          if (newPhotoUrl !== undefined) updateObj.photo_url = newPhotoUrl || null;
+          this.supabase.from('asset_comments')
+            .update(updateObj)
+            .eq('id', commentId)
+            .then(({ error }) => {
+              if (error) console.error('Supabase Comment Update Error:', error);
+            });
+        }
       }
     }
     return target;
@@ -577,12 +593,15 @@ class StorageManager {
       this._saveCommentsMap(map);
 
       if (this.supabase) {
-        this.supabase.from('asset_comments')
-          .delete()
-          .eq('id', commentId)
-          .then(({ error }) => {
-            if (error) console.error('Supabase Comment Delete Error:', error);
-          });
+        const isCommentUuid = typeof commentId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(commentId);
+        if (isCommentUuid) {
+          this.supabase.from('asset_comments')
+            .delete()
+            .eq('id', commentId)
+            .then(({ error }) => {
+              if (error) console.error('Supabase Comment Delete Error:', error);
+            });
+        }
       }
     }
   }
