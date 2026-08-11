@@ -287,6 +287,23 @@ const App = {
     document.body.style.overflow = 'auto';
   },
 
+  openImageModal(imageUrl) {
+    if (!imageUrl) return;
+    const html = `
+      <div class="modal-overlay" id="imagePreviewModal" style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px);" onclick="App.closeModal('imagePreviewModal')">
+        <div class="modal-card" style="max-width: 90vw; max-height: 90vh; background: transparent; border: none; box-shadow: none; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; padding: 0;" onclick="event.stopPropagation()">
+          <button class="modal-close-btn" style="position: absolute; top: -16px; right: -16px; background: #ffffff; color: #1e293b; border-radius: 50%; width: 36px; height: 36px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 1.4rem; cursor: pointer; display: flex; align-items: center; justify-content: center; border: none; font-weight: bold; z-index: 10;" onclick="App.closeModal('imagePreviewModal')">&times;</button>
+          <img src="${Utils.escapeHtml(imageUrl)}" style="max-width: 100%; max-height: 80vh; border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); object-fit: contain; background: #0f172a;" onerror="this.src=Utils.getDefaultAssetImage()" />
+          <div style="margin-top: 16px; display: flex; gap: 10px;">
+            <a href="${Utils.escapeHtml(imageUrl)}" target="_blank" class="btn btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">Open Original Image</a>
+            <button class="btn btn-secondary btn-sm" onclick="App.closeModal('imagePreviewModal')">Close</button>
+          </div>
+        </div>
+      </div>
+    `;
+    this.showModal(html);
+  },
+
   showAssetDetails(assetId) {
     if (Auth.isAdmin()) {
       const html = AssetDetailsView.renderModal(assetId);

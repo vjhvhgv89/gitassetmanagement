@@ -163,15 +163,48 @@ const AssetDetailsView = {
                   comments.length === 0
                     ? `<div class="empty-state">No comments yet. Start a discussion below!</div>`
                     : comments.map(c => `
-                        <div class="comment-item">
-                          <div class="comment-avatar">${c.user.charAt(0)}</div>
-                          <div class="comment-body">
-                            <div class="comment-header">
-                              <strong>${Utils.escapeHtml(c.user)}</strong>
-                              <span class="comment-role">${Utils.escapeHtml(c.role)}</span>
-                              <span class="comment-time">${new Date(c.timestamp).toLocaleString()}</span>
+                        <div class="comment-item" id="comment-item-${c.id}">
+                          <div class="comment-avatar" style="${c.role === 'Admin' ? 'background: #eff6ff; color: #2563eb;' : 'background: #ecfdf5; color: #059669;'}">${(c.user || 'U').charAt(0)}</div>
+                          <div class="comment-body" style="flex: 1;">
+                            <div class="comment-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                              <div>
+                                <strong>${Utils.escapeHtml(c.user)}</strong>
+                                <span class="comment-role" style="${c.role === 'Admin' ? 'background: #dbeafe; color: #1e40af;' : ''}">${Utils.escapeHtml(c.role)}</span>
+                                <span class="comment-time">${new Date(c.timestamp).toLocaleString()}</span>
+                              </div>
+                              <div class="comment-actions" style="display: flex; gap: 6px;">
+                                <button type="button" class="btn btn-outline" style="padding: 2px 8px; font-size: 0.75rem;" onclick="AssetDetailsView.showEditCommentForm('${c.id}')">Edit</button>
+                                <button type="button" class="btn btn-danger" style="padding: 2px 8px; font-size: 0.75rem;" onclick="AssetDetailsView.handleDeleteComment('${asset.id}', '${c.id}')">Delete</button>
+                              </div>
                             </div>
-                            <div class="comment-text">${Utils.escapeHtml(c.text)}</div>
+                            <div id="comment-display-${c.id}">
+                              <div class="comment-text">${Utils.escapeHtml(c.text)}</div>
+                              ${
+                                c.photoUrl ? `
+                                  <div style="margin-top: 10px; display: flex; flex-direction: column; align-items: flex-start;">
+                                    <div style="position: relative; display: inline-block; cursor: pointer;" onclick="App.openImageModal('${Utils.escapeHtml(c.photoUrl.replace(/'/g, "\\'"))}')">
+                                      <img src="${Utils.escapeHtml(c.photoUrl)}" class="history-photo-thumb" style="width: 140px; height: 100px; object-fit: cover; border-radius: 8px; border: 1px solid #cbd5e1; transition: transform 0.2s ease;" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'" />
+                                      <span style="position: absolute; bottom: 6px; right: 6px; background: rgba(0,0,0,0.75); color: #ffffff; padding: 2px 6px; border-radius: 4px; font-size: 0.68rem; font-weight: 600;">Click to view image</span>
+                                    </div>
+                                  </div>
+                                ` : ''
+                              }
+                            </div>
+                            <div id="comment-edit-box-${c.id}" style="display: none; margin-top: 8px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                              <div class="form-group" style="margin-bottom: 8px;">
+                                <label class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Edit Message:</label>
+                                <textarea id="editCommentInput-${c.id}" class="form-control" rows="2">${Utils.escapeHtml(c.text)}</textarea>
+                              </div>
+                              <div class="form-group" style="margin-bottom: 12px;">
+                                <label class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Update Attached Photo (Optional URL or File):</label>
+                                <input type="text" id="editCommentPhotoInput-${c.id}" class="form-control" placeholder="Photo URL..." value="${Utils.escapeHtml(c.photoUrl || '')}" style="margin-bottom: 4px;" />
+                                <input type="file" class="form-control" accept="image/*" onchange="AssetDetailsView.handleEditFileChoose(this, '${c.id}')" />
+                              </div>
+                              <div style="display: flex; gap: 8px;">
+                                <button type="button" class="btn btn-primary btn-sm" onclick="AssetDetailsView.handleSaveEditedComment('${asset.id}', '${c.id}')">Save Changes</button>
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="AssetDetailsView.cancelEditComment('${c.id}')">Cancel</button>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       `).join('')
@@ -184,7 +217,16 @@ const AssetDetailsView = {
                   <label class="form-label">Add Admin Comment / Instruction:</label>
                   <textarea id="newCommentText" class="form-control" rows="3" required placeholder="Type notes, technician updates, or instructions for store staff..."></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary btn-sm">Post Comment</button>
+
+                <div class="form-group">
+                  <label class="form-label">Attach Photo (Optional URL or File Upload)</label>
+                  <div class="image-input-choice" style="display: flex; gap: 8px;">
+                    <input type="text" id="adminCommentPhotoUrl" class="form-control" placeholder="Paste Photo URL..." />
+                    <input type="file" id="adminCommentPhotoFile" class="form-control" accept="image/*" onchange="AssetDetailsView.handleFileChoose(this)" />
+                  </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-sm">Post Comment & Photo</button>
               </form>
             </div>
 
@@ -220,6 +262,28 @@ const AssetDetailsView = {
     `;
   },
 
+  handleFileChoose(input) {
+    if (input.files && input.files[0]) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const photoInput = document.getElementById('adminCommentPhotoUrl');
+        if (photoInput) photoInput.value = e.target.result;
+      };
+      reader.readAsDataURL(input.files[0]);
+    }
+  },
+
+  handleEditFileChoose(input, commentId) {
+    if (input.files && input.files[0]) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const photoInput = document.getElementById(`editCommentPhotoInput-${commentId}`);
+        if (photoInput) photoInput.value = e.target.result;
+      };
+      reader.readAsDataURL(input.files[0]);
+    }
+  },
+
   switchDetailsTab(tabName) {
     const tabs = ['history', 'comments', 'timeline'];
     tabs.forEach(t => {
@@ -237,21 +301,133 @@ const AssetDetailsView = {
     });
   },
 
+  showEditCommentForm(commentId) {
+    const displayBox = document.getElementById(`comment-display-${commentId}`);
+    const editBox = document.getElementById(`comment-edit-box-${commentId}`);
+    if (displayBox && editBox) {
+      displayBox.style.display = 'none';
+      editBox.style.display = 'block';
+    }
+  },
+
+  cancelEditComment(commentId) {
+    const displayBox = document.getElementById(`comment-display-${commentId}`);
+    const editBox = document.getElementById(`comment-edit-box-${commentId}`);
+    if (displayBox && editBox) {
+      displayBox.style.display = 'block';
+      editBox.style.display = 'none';
+    }
+  },
+
+  handleSaveEditedComment(assetId, commentId) {
+    const input = document.getElementById(`editCommentInput-${commentId}`);
+    if (!input) return;
+    const updatedText = input.value.trim();
+    if (!updatedText) {
+      Utils.showToast('Comment text cannot be empty.', 'error');
+      return;
+    }
+
+    const photoInput = document.getElementById(`editCommentPhotoInput-${commentId}`);
+    const updatedPhotoUrl = photoInput ? photoInput.value.trim() : null;
+
+    const asset = storage.getAssetById(assetId);
+
+    // Save edited comment
+    storage.editComment(assetId, commentId, updatedText, updatedPhotoUrl);
+
+    // Log Activity
+    storage.logActivity(
+      'Admin Edited Comment',
+      `Admin edited comment on ${asset ? asset.name : 'Asset'}: "${updatedText}"`,
+      asset ? asset.storeName : 'All Stores',
+      asset ? asset.name : 'Asset',
+      'System Admin',
+      'Admin'
+    );
+
+    // Notify Employee / Store
+    storage.addNotification({
+      message: `System Admin edited a comment on ${asset ? asset.name : 'Asset'}: "${updatedText.length > 50 ? updatedText.substring(0, 50) + '...' : updatedText}"`,
+      assetId,
+      assetName: asset ? asset.name : 'Asset',
+      storeName: asset ? asset.storeName : 'All Stores',
+      userName: 'System Admin',
+      userRole: 'Admin'
+    });
+
+    Utils.showToast('Comment updated & employee notified!', 'success');
+
+    // Refresh Modal & keep comments tab active
+    App.closeModal('assetDetailsModal');
+    App.showAssetDetails(assetId);
+    setTimeout(() => {
+      AssetDetailsView.switchDetailsTab('comments');
+    }, 50);
+  },
+
+  handleDeleteComment(assetId, commentId) {
+    if (!confirm('Are you sure you want to delete this comment?')) return;
+
+    const comments = storage.getComments(assetId);
+    const targetCmt = comments.find(c => c.id === commentId);
+    const asset = storage.getAssetById(assetId);
+    const deletedText = targetCmt ? targetCmt.text : 'comment';
+
+    // Delete comment
+    storage.deleteComment(assetId, commentId);
+
+    // Log Activity
+    storage.logActivity(
+      'Admin Deleted Comment',
+      `Admin deleted comment on ${asset ? asset.name : 'Asset'}`,
+      asset ? asset.storeName : 'All Stores',
+      asset ? asset.name : 'Asset',
+      'System Admin',
+      'Admin'
+    );
+
+    // Notify Employee / Store
+    storage.addNotification({
+      message: `System Admin deleted a comment on ${asset ? asset.name : 'Asset'}: "${deletedText.length > 40 ? deletedText.substring(0, 40) + '...' : deletedText}"`,
+      assetId,
+      assetName: asset ? asset.name : 'Asset',
+      storeName: asset ? asset.storeName : 'All Stores',
+      userName: 'System Admin',
+      userRole: 'Admin'
+    });
+
+    Utils.showToast('Comment deleted & employee notified!', 'info');
+
+    // Refresh Modal & keep comments tab active
+    App.closeModal('assetDetailsModal');
+    App.showAssetDetails(assetId);
+    setTimeout(() => {
+      AssetDetailsView.switchDetailsTab('comments');
+    }, 50);
+  },
+
   handlePostComment(event, assetId) {
     event.preventDefault();
     const input = document.getElementById('newCommentText');
     const text = input.value.trim();
     if (!text) return;
 
+    const photoUrlInput = document.getElementById('adminCommentPhotoUrl');
+    const photoUrl = photoUrlInput ? photoUrlInput.value.trim() : null;
+
     const asset = storage.getAssetById(assetId);
-    storage.addComment(assetId, text, 'System Admin', 'Admin');
+    storage.addComment(assetId, text, 'System Admin', 'Admin', photoUrl);
 
     storage.logActivity('Admin Added Comment', `Comment on ${asset ? asset.name : 'Asset'}: "${text}"`, asset ? asset.storeName : 'All Stores', asset ? asset.name : 'Asset');
 
     Utils.showToast('Comment posted successfully!', 'success');
     
-    // Refresh details modal
+    // Refresh details modal & keep comments tab active
     App.closeModal('assetDetailsModal');
     App.showAssetDetails(assetId);
+    setTimeout(() => {
+      AssetDetailsView.switchDetailsTab('comments');
+    }, 50);
   }
 };

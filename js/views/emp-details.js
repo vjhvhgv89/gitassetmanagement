@@ -189,8 +189,11 @@ const EmpDetailsView = {
                             <div class="comment-text">${Utils.escapeHtml(c.text)}</div>
                             ${
                               c.photoUrl ? `
-                                <div style="margin-top: 8px;">
-                                  <img src="${Utils.escapeHtml(c.photoUrl)}" class="history-photo-thumb" onclick="window.open('${Utils.escapeHtml(c.photoUrl)}', '_blank')" />
+                                <div style="margin-top: 10px; display: flex; flex-direction: column; align-items: flex-start;">
+                                  <div style="position: relative; display: inline-block; cursor: pointer;" onclick="App.openImageModal('${Utils.escapeHtml(c.photoUrl.replace(/'/g, "\\'"))}')">
+                                    <img src="${Utils.escapeHtml(c.photoUrl)}" class="history-photo-thumb" style="width: 140px; height: 100px; object-fit: cover; border-radius: 8px; border: 1px solid #cbd5e1; transition: transform 0.2s ease;" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'" />
+                                    <span style="position: absolute; bottom: 6px; right: 6px; background: rgba(0,0,0,0.75); color: #ffffff; padding: 2px 6px; border-radius: 4px; font-size: 0.68rem; font-weight: 600;">Click to view image</span>
+                                  </div>
                                 </div>
                               ` : ''
                             }
@@ -250,12 +253,7 @@ const EmpDetailsView = {
     const asset = storage.getAssetById(assetId);
 
     // Save comment
-    const newCmt = storage.addComment(assetId, text, user ? user.name : 'Store Employee', 'Store Manager');
-    if (photoUrl) {
-      newCmt.photoUrl = photoUrl;
-      const allCmts = storage.get('asset_comments');
-      storage.set('asset_comments', allCmts);
-    }
+    const newCmt = storage.addComment(assetId, text, user ? user.name : 'Store Employee', 'Store Manager', photoUrl);
 
     // Log Activity
     const actionMsg = photoUrl ? 'Employee Uploaded Photo & Comment' : 'Employee Added Comment';
