@@ -538,20 +538,17 @@ class StorageManager {
     map[assetId].push(newCmt);
     this._saveCommentsMap(map);
 
-    if (this.supabase) {
-      const isUuid = typeof assetId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(assetId);
-      if (isUuid) {
-        this.supabase.from('asset_comments').insert({
-          id: newCmt.id,
-          asset_id: assetId,
-          user_name: user,
-          role: role === 'Store Employee' ? 'Store Manager' : role,
-          text,
-          photo_url: photoUrl || null
-        }).then(({ error }) => {
-          if (error) console.error('Supabase Comment Error:', error);
-        });
-      }
+    if (this.supabase && assetId) {
+      this.supabase.from('asset_comments').insert({
+        id: newCmt.id,
+        asset_id: String(assetId),
+        user_name: user,
+        role: role === 'Store Employee' ? 'Store Manager' : role,
+        text,
+        photo_url: photoUrl || null
+      }).then(({ error }) => {
+        if (error) console.error('Supabase Comment Error:', error);
+      });
     }
 
     return newCmt;

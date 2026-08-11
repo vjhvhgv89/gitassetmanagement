@@ -95,7 +95,7 @@ CREATE INDEX IF NOT EXISTS idx_mhist_completed_date ON public.maintenance_histor
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.asset_comments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    asset_id UUID NOT NULL REFERENCES public.assets(id) ON DELETE CASCADE,
+    asset_id VARCHAR(255) NOT NULL,
     user_name VARCHAR(255) NOT NULL,
     role VARCHAR(50) NOT NULL CHECK (role IN ('Admin', 'Store Employee', 'Store Manager')),
     text TEXT NOT NULL,
