@@ -264,23 +264,27 @@ const AssetDetailsView = {
 
   handleFileChoose(input) {
     if (input.files && input.files[0]) {
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const photoInput = document.getElementById('adminCommentPhotoUrl');
-        if (photoInput) photoInput.value = e.target.result;
-      };
-      reader.readAsDataURL(input.files[0]);
+      const file = input.files[0];
+      Utils.compressImage(file, function(dataUrl) {
+        if (dataUrl) {
+          const photoInput = document.getElementById('adminCommentPhotoUrl');
+          if (photoInput) photoInput.value = dataUrl;
+          Utils.showToast('Photo attached & ready!', 'info');
+        }
+      });
     }
   },
 
   handleEditFileChoose(input, commentId) {
     if (input.files && input.files[0]) {
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const photoInput = document.getElementById(`editCommentPhotoInput-${commentId}`);
-        if (photoInput) photoInput.value = e.target.result;
-      };
-      reader.readAsDataURL(input.files[0]);
+      const file = input.files[0];
+      Utils.compressImage(file, function(dataUrl) {
+        if (dataUrl) {
+          const photoInput = document.getElementById(`editCommentPhotoInput-${commentId}`);
+          if (photoInput) photoInput.value = dataUrl;
+          Utils.showToast('Photo attached & ready!', 'info');
+        }
+      });
     }
   },
 

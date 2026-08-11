@@ -254,5 +254,51 @@ const Utils = {
       link.click();
       document.body.removeChild(link);
     }
+  },
+
+  /**
+   * AUTOMATIC IMAGE COMPRESSOR
+   * Resizes large photos (camera/file uploads) to max 800px & JPEG 0.7 quality to fit localStorage and Supabase.
+   */
+  compressImage(file, callback, maxDimension = 800, quality = 0.7) {
+    if (!file || !file.type || !file.type.startsWith('image/')) {
+      if (callback) callback(null);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const img = new Image();
+      img.onload = function () {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        if (callback) callback(dataUrl);
+      };
+      img.onerror = function () {
+        if (callback) callback(e.target.result);
+      };
+      img.src = e.target.result;
+    };
+    reader.onerror = function () {
+      if (callback) callback(null);
+    };
+    reader.readAsDataURL(file);
   }
 };

@@ -234,11 +234,14 @@ const EmpDetailsView = {
 
   handleFileChoose(input) {
     if (input.files && input.files[0]) {
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        document.getElementById('empCommentPhotoUrl').value = e.target.result;
-      };
-      reader.readAsDataURL(input.files[0]);
+      const file = input.files[0];
+      Utils.compressImage(file, function(dataUrl) {
+        if (dataUrl) {
+          const photoInput = document.getElementById('empCommentPhotoUrl');
+          if (photoInput) photoInput.value = dataUrl;
+          Utils.showToast('Photo attached & ready!', 'info');
+        }
+      });
     }
   },
 

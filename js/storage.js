@@ -515,6 +515,21 @@ class StorageManager {
       localStorage.setItem('asset_comments', JSON.stringify(map || {}));
     } catch (e) {
       console.error('Storage Save Comments Error', e);
+      try {
+        const pruned = JSON.parse(JSON.stringify(map || {}));
+        Object.keys(pruned).forEach(astId => {
+          if (Array.isArray(pruned[astId])) {
+            pruned[astId].forEach(c => {
+              if (c.photoUrl && c.photoUrl.length > 300000) {
+                c.photoUrl = null;
+              }
+            });
+          }
+        });
+        localStorage.setItem('asset_comments', JSON.stringify(pruned));
+      } catch (errFallback) {
+        console.error('Pruned save fallback error:', errFallback);
+      }
     }
   }
 
