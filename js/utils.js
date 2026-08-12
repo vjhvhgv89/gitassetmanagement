@@ -140,6 +140,53 @@ const Utils = {
     return asset.cycle;
   },
 
+  // Comprehensive Store Assignment Matching for Employee Scoping
+  isAssetAssignedToUserStore(asset, user) {
+    if (!asset || !user) return false;
+
+    const uId = user.storeId ? String(user.storeId).toLowerCase().trim() : '';
+    const uCode = user.storeCode ? String(user.storeCode).toLowerCase().trim() : '';
+    const uName = user.storeName ? String(user.storeName).toLowerCase().trim() : '';
+    const uUser = user.username ? String(user.username).toLowerCase().trim() : '';
+
+    const aStoreId = asset.storeId ? String(asset.storeId).toLowerCase().trim() : '';
+    const aStoreName = asset.storeName ? String(asset.storeName).toLowerCase().trim() : '';
+
+    if (aStoreId && (aStoreId === uId || aStoreId === uCode || aStoreId === uName || aStoreId === uUser)) {
+      return true;
+    }
+
+    if (aStoreName && (aStoreName === uName || aStoreName === uCode || aStoreName === uUser || aStoreName === uId)) {
+      return true;
+    }
+
+    if (window.storage && typeof window.storage.getStores === 'function') {
+      const stores = window.storage.getStores();
+      const matchedStore = stores.find(s =>
+        (uId && String(s.id).toLowerCase().trim() === uId) ||
+        (uCode && String(s.code).toLowerCase().trim() === uCode) ||
+        (uUser && String(s.username).toLowerCase().trim() === uUser) ||
+        (uName && String(s.name).toLowerCase().trim() === uName)
+      );
+
+      if (matchedStore) {
+        const sId = String(matchedStore.id || '').toLowerCase().trim();
+        const sCode = String(matchedStore.code || '').toLowerCase().trim();
+        const sName = String(matchedStore.name || '').toLowerCase().trim();
+        const sUser = String(matchedStore.username || '').toLowerCase().trim();
+
+        if (aStoreId && (aStoreId === sId || aStoreId === sCode || aStoreId === sName || aStoreId === sUser)) {
+          return true;
+        }
+        if (aStoreName && (aStoreName === sId || aStoreName === sCode || aStoreName === sName || aStoreName === sUser)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  },
+
   // Date Formatter: "Aug 15, 2026"
   formatDate(dateStr) {
     if (!dateStr || dateStr === 'None') return 'N/A';

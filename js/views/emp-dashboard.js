@@ -17,13 +17,10 @@ const EmpDashboardView = {
       return `<div class="empty-state">Error: Store session invalid. Please log in again.</div>`;
     }
 
-    // Filter assets assigned STRICTLY to this store
-    // STRICT SCOPING: Only assets for logged in store (matched by ID, Code, or Name)
-    const storeAssets = storage.getAssets().filter(a =>
-      a.storeId === user.storeId ||
-      (user.storeCode && a.storeId === user.storeCode) ||
-      (a.storeName && user.storeName && a.storeName.toLowerCase().trim() === user.storeName.toLowerCase().trim())
-    ).map(asset => ({
+    // STRICT SCOPING: Only assets assigned to logged in store
+    const storeAssets = storage.getAssets()
+      .filter(a => Utils.isAssetAssignedToUserStore(a, user))
+      .map(asset => ({
         ...asset,
         statusInfo: Utils.calculateStatus(asset)
       }));

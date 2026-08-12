@@ -20,12 +20,8 @@ const EmpAssetsView = {
       return `<div class="empty-state">Store session invalid. Please log in again.</div>`;
     }
 
-    // STRICT SCOPING: Only assets for logged in store (matched by ID, Code, or Name)
-    let assets = storage.getAssets().filter(a =>
-      a.storeId === user.storeId ||
-      (user.storeCode && a.storeId === user.storeCode) ||
-      (a.storeName && user.storeName && a.storeName.toLowerCase().trim() === user.storeName.toLowerCase().trim())
-    );
+    // STRICT SCOPING: Only assets assigned to logged in store
+    let assets = storage.getAssets().filter(a => Utils.isAssetAssignedToUserStore(a, user));
 
     assets = assets.map(a => ({
       ...a,
