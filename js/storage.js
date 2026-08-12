@@ -82,6 +82,17 @@ class StorageManager {
     this.syncFromSupabase();
   }
 
+  async refreshDatabase() {
+    console.log('🔄 Refreshing database & syncing from Supabase...');
+    await this.syncFromSupabase();
+    if (window.App && typeof window.App.renderCurrentView === 'function') {
+      window.App.renderCurrentView();
+    }
+    if (window.Utils && typeof window.Utils.showToast === 'function') {
+      window.Utils.showToast('Database refreshed & synchronized with Supabase!', 'success');
+    }
+  }
+
   async syncFromSupabase() {
     if (!this.supabase) return;
     try {
