@@ -149,15 +149,7 @@ class StorageManager {
           createdAt: a.created_at
         }));
 
-        const mergedAssets = [...mappedAssets];
-        localAssets.forEach(la => {
-          if (!mergedAssets.some(ma => ma.id === la.id)) {
-            mergedAssets.push(la);
-            this.saveAsset(la);
-          }
-        });
-
-        this.set(STORAGE_KEYS.ASSETS, mergedAssets);
+        this.set(STORAGE_KEYS.ASSETS, mappedAssets);
         dataChanged = true;
       }
 
@@ -472,13 +464,32 @@ class StorageManager {
   }
 
   deleteAsset(assetId) {
-    const assets = this.getAssets().filter(a => a.id !== assetId);
+    if (!assetId) return;
+
+    const targetAsset = this.getAssetById(assetId);
+    const targetId = targetAsset ? targetAsset.id : assetId;
+    const targetSerial = targetAsset ? targetAsset.serialId : null;
+
+    const assets = this.getAssets().filter(a =>
+      a.id !== targetId &&
+      a.id !== assetId &&
+      (!targetSerial || a.serialId !== targetSerial)
+    );
     this.set(STORAGE_KEYS.ASSETS, assets);
 
-    if (this.supabase && assetId.includes('-')) {
-      this.supabase.from('assets').delete().eq('id', assetId).then(({ error }) => {
-        if (error) console.error('Supabase Delete Asset Error:', error);
-      });
+    if (this.supabase) {
+      if (targetId) {
+        this.supabase.from('assets').delete().eq('id', targetId).then(({ error }) => {
+          if (error) console.error('❌ Supabase Delete Asset Error:', error);
+          else console.log('✅ Asset deleted from Supabase by ID:', targetId);
+        });
+      }
+      if (targetSerial && targetSerial !== targetId) {
+        this.supabase.from('assets').delete().eq('serial_id', targetSerial).then(({ error }) => {
+          if (error) console.error('❌ Supabase Delete Asset Serial Error:', error);
+          else console.log('✅ Asset deleted from Supabase by Serial ID:', targetSerial);
+        });
+      }
     }
   }
 
