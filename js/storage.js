@@ -39,11 +39,15 @@ function generateUUID() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
     const r = Math.random() * 16 | 0;
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+}
+
+function isUUID(str) {
+  return typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
 
 class StorageManager {
@@ -301,8 +305,8 @@ class StorageManager {
 
       const isPastDueDate = dueDateObj && today >= dueDateObj;
 
-      // Auto-advance cycle ONLY when current date reaches or passes the scheduled due date
-      if (dueDateObj && today >= dueDateObj) {
+      // 2 Weeks (14 days) Before Next Due Date Window Rule
+      if (diffDays <= 14 && (isPastDueDate || asset.isCompleted)) {
         const oldNext = asset.nextDueDate;
         asset.dueDate = oldNext;
         if (window.Utils) {
@@ -351,13 +355,25 @@ class StorageManager {
     const assets = this.getAssets();
     const existingIndex = assets.findIndex(a => a.id === asset.id);
 
-    if (!asset.id || !asset.id.includes('-')) {
+    if (!isUUID(asset.id)) {
       asset.id = generateUUID();
     }
     asset.createdAt = asset.createdAt || new Date().toISOString();
     if (!asset.lastCompletedDate) asset.lastCompletedDate = 'None';
     if (!asset.nextDueDate && window.Utils) {
       asset.nextDueDate = window.Utils.calculateNextDueDate(asset.dueDate, asset.cycle, asset.customDays);
+    }
+
+    if (!isUUID(asset.storeId)) {
+      const stores = this.getStores();
+      const matchedStore = stores.find(s => s.id === asset.storeId || s.name === asset.storeName);
+      if (matchedStore && isUUID(matchedStore.id)) {
+        asset.storeId = matchedStore.id;
+      } else if (matchedStore) {
+        matchedStore.id = generateUUID();
+        this.saveStore(matchedStore);
+        asset.storeId = matchedStore.id;
+      }
     }
 
     if (existingIndex >= 0) {
@@ -374,13 +390,13 @@ class StorageManager {
         serial_id: asset.serialId,
         name: asset.name,
         category: asset.category,
-        store_id: asset.storeId && asset.storeId.includes('-') ? asset.storeId : null,
+        store_id: isUUID(asset.storeId) ? asset.storeId : null,
         store_name: asset.storeName,
         location: asset.location,
         due_date: asset.dueDate,
         next_due_date: asset.nextDueDate,
         cycle: asset.cycle,
-        custom_days: asset.customDays,
+        custom_days: asset.customDays || 30,
         condition: asset.condition,
         cost: asset.cost,
         image_url: asset.imageUrl,
@@ -516,14 +532,23 @@ class StorageManager {
 
   addMaintenanceRecord(record) {
     const history = this.getMaintenanceHistory();
-    record.id = generateUUID();
+    if (!isUUID(record.id)) {
+      record.id = generateUUID();
+    }
+    if (!isUUID(record.assetId)) {
+      const matchedAsset = this.getAssetById(record.assetId);
+      if (matchedAsset && isUUID(matchedAsset.id)) {
+        record.assetId = matchedAsset.id;
+      }
+    }
+
     history.unshift(record);
     this.set(STORAGE_KEYS.MAINTENANCE_HISTORY, history);
 
     if (this.supabase) {
       const payload = {
         id: record.id,
-        asset_id: record.assetId && record.assetId.includes('-') ? record.assetId : null,
+        asset_id: isUUID(record.assetId) ? record.assetId : null,
         completed_date: record.completedDate,
         scheduled_due_date: record.scheduledDueDate,
         is_late: record.isLate || false,
@@ -539,7 +564,14 @@ class StorageManager {
       };
 
       this.supabase.from('maintenance_history').insert(payload).then(({ error }) => {
-        if (error) console.error('Supabase Maintenance History Error:', error);
+        if (error) {
+          console.error('❌ Supabase Maintenance History Error:', error);
+          if (window.Utils && typeof window.Utils.showToast === 'function') {
+            window.Utils.showToast(`Supabase Sync Notice: ${error.message}`, 'warning');
+          }
+        } else {
+          console.log('✅ Maintenance record saved to Supabase successfully.');
+        }
       });
     }
   }
@@ -633,10 +665,18 @@ class StorageManager {
     map[assetId].push(newCmt);
     this._saveCommentsMap(map);
 
+    let targetAssetUuid = assetId;
+    if (!isUUID(targetAssetUuid)) {
+      const matchedAsset = this.getAssetById(assetId);
+      if (matchedAsset && isUUID(matchedAsset.id)) {
+        targetAssetUuid = matchedAsset.id;
+      }
+    }
+
     if (this.supabase && assetId) {
       this.supabase.from('asset_comments').insert({
         id: newCmt.id,
-        asset_id: String(assetId),
+        asset_id: isUUID(targetAssetUuid) ? targetAssetUuid : null,
         user_name: user,
         role: role === 'Store Employee' ? 'Store Manager' : role,
         text,
