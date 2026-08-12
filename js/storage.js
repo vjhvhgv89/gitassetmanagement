@@ -301,8 +301,8 @@ class StorageManager {
 
       const isPastDueDate = dueDateObj && today >= dueDateObj;
 
-      // 2 Weeks (14 days) Before Next Due Date Window Rule
-      if (diffDays <= 14 && (isPastDueDate || asset.isCompleted)) {
+      // Auto-advance cycle ONLY when current date reaches or passes the scheduled due date
+      if (dueDateObj && today >= dueDateObj) {
         const oldNext = asset.nextDueDate;
         asset.dueDate = oldNext;
         if (window.Utils) {
