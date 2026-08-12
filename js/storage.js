@@ -577,11 +577,28 @@ class StorageManager {
 
   // Maintenance History
   getMaintenanceHistory(assetId = null) {
-    let history = this.get(STORAGE_KEYS.MAINTENANCE_HISTORY);
+    let history = this.get(STORAGE_KEYS.MAINTENANCE_HISTORY) || [];
+
     if (assetId) {
-      history = history.filter(h => h.assetId === assetId);
+      const targetAsset = this.getAssetById(assetId);
+      const idKeys = new Set();
+      idKeys.add(String(assetId).toLowerCase().trim());
+
+      if (targetAsset) {
+        if (targetAsset.id) idKeys.add(String(targetAsset.id).toLowerCase().trim());
+        if (targetAsset.serialId) idKeys.add(String(targetAsset.serialId).toLowerCase().trim());
+        const cleanId = String(targetAsset.id).replace(/^ast_/, '').toLowerCase().trim();
+        if (cleanId) idKeys.add(cleanId);
+      }
+
+      history = history.filter(h => {
+        if (!h || !h.assetId) return false;
+        const hAssetId = String(h.assetId).toLowerCase().trim();
+        const cleanHId = hAssetId.replace(/^ast_/, '').trim();
+        return idKeys.has(hAssetId) || idKeys.has(cleanHId);
+      });
     }
-    // Sort by completedDate descending (most recent completion date first!)
+
     return history.sort((a, b) => new Date(b.completedDate || 0) - new Date(a.completedDate || 0));
   }
 
