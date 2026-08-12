@@ -125,7 +125,17 @@ const MaintenanceView = {
                             ${asset.statusInfo.label}
                           </span>
                         </td>
-                        <td>${Utils.formatDate(asset.lastCompletedDate)}</td>
+                        <td>
+                          <div>${Utils.formatDate(asset.lastCompletedDate)}</div>
+                          ${(asset.lastProofPhoto || asset.lastCompletedBy) ? `
+                            <div style="margin-top: 4px; display: flex; align-items: center; gap: 6px;">
+                              ${asset.lastProofPhoto ? `
+                                <img src="${Utils.escapeHtml(asset.lastProofPhoto)}" style="width: 28px; height: 28px; border-radius: 4px; object-fit: cover; cursor: pointer; border: 1px solid #cbd5e1; transition: transform 0.15s ease;" title="Click to view full uploaded proof photo" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="App.openImageModal('${Utils.escapeHtml(asset.lastProofPhoto.replace(/'/g, "\\'"))}')" />
+                              ` : ''}
+                              <span class="text-subtle" style="font-size: 0.74rem;">${Utils.escapeHtml(asset.lastCompletedBy || '')}</span>
+                            </div>
+                          ` : ''}
+                        </td>
                         <td>${asset.cycle === 'No Repeat' ? 'No Repeat' : Utils.formatDate(asset.nextDueDate)}</td>
                         <td style="text-align: right;">
                           <div class="action-btn-group">

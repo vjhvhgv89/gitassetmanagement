@@ -143,9 +143,9 @@ const AssetDetailsView = {
                           item.photos && item.photos.length > 0
                             ? `<div class="history-photos" style="margin-top: 8px;">
                                 ${item.photos.map(p => `
-                                  <div style="display: flex; flex-direction: column; align-items: flex-start;">
-                                    <img src="${Utils.escapeHtml(p)}" class="history-photo-thumb" onclick="window.open('${Utils.escapeHtml(p)}', '_blank')" />
-                                    <span style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">Uploaded Proof Photo</span>
+                                  <div style="display: flex; flex-direction: column; align-items: flex-start; margin-right: 8px;">
+                                    <img src="${Utils.escapeHtml(p)}" class="history-photo-thumb" style="width: 140px; height: 100px; object-fit: cover; border-radius: 8px; border: 1px solid #cbd5e1; cursor: pointer; transition: transform 0.2s ease;" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'" onclick="App.openImageModal('${Utils.escapeHtml(p.replace(/'/g, "\\'"))}')" />
+                                    <span style="font-size: 0.72rem; color: #64748b; margin-top: 4px; font-weight: 500;">📷 Uploaded Proof Photo (Click to zoom)</span>
                                   </div>
                                 `).join('')}
                                </div>`
