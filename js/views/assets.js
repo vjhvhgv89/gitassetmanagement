@@ -182,7 +182,8 @@ const AssetsView = {
                         <td>
                           <strong>${Utils.formatDate(asset.dueDate)}</strong>
                           <div class="text-subtle">${Utils.getRelativeDateDisplay(asset.dueDate, asset.isCompleted)}</div>
-                          <div class="text-subtle" style="font-size: 0.75rem;">Cycle: ${Utils.escapeHtml(asset.cycle)}</div>
+                          <div class="text-subtle" style="font-size: 0.75rem;">Cycle: <strong>${Utils.escapeHtml(Utils.getCycleDisplay(asset))}</strong></div>
+                          <div class="text-subtle" style="font-size: 0.75rem; color: #2563eb;">Next: <strong>${Utils.formatDate(asset.nextDueDate || Utils.calculateNextDueDate(asset.dueDate, asset.cycle, asset.customDays))}</strong></div>
                         </td>
                         <td>
                           <span class="condition-tag condition-${asset.condition.toLowerCase().replace(/\s+/g, '-')}">
@@ -258,6 +259,11 @@ const AssetsView = {
     const stores = storage.getStores();
     const isEdit = !!asset;
 
+    const initialDueDate = asset ? asset.dueDate : Utils.getTodayStr();
+    const initialCycle = asset ? asset.cycle : 'Monthly';
+    const initialCustomDays = asset ? asset.customDays || 30 : 30;
+    const initialNextDueDate = (asset && asset.nextDueDate) ? asset.nextDueDate : Utils.calculateNextDueDate(initialDueDate, initialCycle, initialCustomDays);
+
     const modalHtml = `
       <div class="modal-overlay" id="assetModal">
         <div class="modal-card modal-lg">
@@ -325,12 +331,12 @@ const AssetsView = {
 
                 <div class="form-group">
                   <label class="form-label">Scheduled Due Date <span class="required">*</span></label>
-                  <input type="date" id="assetDueDate" class="form-control" required value="${asset ? asset.dueDate : Utils.getTodayStr()}" />
+                  <input type="date" id="assetDueDate" class="form-control" required value="${initialDueDate}" onchange="AssetsView.updateAutoNextDueDate()" />
                 </div>
 
                 <div class="form-group">
                   <label class="form-label">Maintenance Cycle <span class="required">*</span></label>
-                  <select id="assetCycle" class="form-control" onchange="AssetsView.toggleCustomDaysInput(this.value)">
+                  <select id="assetCycle" class="form-control" onchange="AssetsView.toggleCycleFields(this.value)">
                     <option value="No Repeat" ${asset && asset.cycle === 'No Repeat' ? 'selected' : ''}>No Repeat</option>
                     <option value="Weekly" ${asset && asset.cycle === 'Weekly' ? 'selected' : ''}>Weekly (Every 7 days)</option>
                     <option value="Monthly" ${!asset || asset.cycle === 'Monthly' ? 'selected' : ''}>Monthly</option>
@@ -339,13 +345,14 @@ const AssetsView = {
                     <option value="Every 6 Months" ${asset && asset.cycle === 'Every 6 Months' ? 'selected' : ''}>Every 6 Months</option>
                     <option value="Every 9 Months" ${asset && asset.cycle === 'Every 9 Months' ? 'selected' : ''}>Every 9 Months</option>
                     <option value="Yearly" ${asset && asset.cycle === 'Yearly' ? 'selected' : ''}>Yearly</option>
-                    <option value="Custom" ${asset && asset.cycle === 'Custom' ? 'selected' : ''}>Custom Days</option>
+                    <option value="Input Date" ${asset && (asset.cycle === 'Input Date' || asset.cycle === 'Custom Date') ? 'selected' : ''}>Input Date (Select Specific Date)</option>
                   </select>
                 </div>
 
-                <div class="form-group" id="customDaysWrapper" style="display: ${asset && asset.cycle === 'Custom' ? 'block' : 'none'};">
-                  <label class="form-label">Custom Repeat Interval (Days)</label>
-                  <input type="number" id="assetCustomDays" class="form-control" min="1" placeholder="e.g. 45" value="${asset ? asset.customDays || 30 : 30}" />
+                <div class="form-group" id="nextDueDateWrapper" style="display: ${asset && (asset.cycle === 'Input Date' || asset.cycle === 'Custom Date') ? 'block' : 'none'};">
+                  <label class="form-label">Next Maintenance Date <span class="required">*</span></label>
+                  <input type="date" id="assetNextDueDate" class="form-control" value="${initialNextDueDate}" />
+                  <small class="form-help">Select the date for the next maintenance cycle.</small>
                 </div>
 
                 <div class="form-group">
@@ -426,10 +433,23 @@ const AssetsView = {
     }
   },
 
-  toggleCustomDaysInput(cycle) {
-    const el = document.getElementById('customDaysWrapper');
-    if (el) {
-      el.style.display = cycle === 'Custom' ? 'block' : 'none';
+  toggleCycleFields(cycleVal) {
+    const nextDateEl = document.getElementById('nextDueDateWrapper');
+    const isInputDate = cycleVal === 'Input Date' || cycleVal === 'Custom Date';
+
+    if (nextDateEl) {
+      nextDateEl.style.display = isInputDate ? 'block' : 'none';
+    }
+
+    this.updateAutoNextDueDate();
+  },
+
+  updateAutoNextDueDate() {
+    const dueDate = document.getElementById('assetDueDate')?.value || Utils.getTodayStr();
+    const cycle = document.getElementById('assetCycle')?.value || 'Monthly';
+    const nextInput = document.getElementById('assetNextDueDate');
+    if (nextInput && cycle !== 'Input Date' && cycle !== 'Custom Date') {
+      nextInput.value = Utils.calculateNextDueDate(dueDate, cycle);
     }
   },
 
@@ -466,8 +486,8 @@ const AssetsView = {
   handleSaveAsset(event, assetId) {
     event.preventDefault();
 
-    const name = document.getElementById('assetName').value.trim();
-    let category = document.getElementById('assetCategory').value;
+    const name = document.getElementById('assetName')?.value.trim() || '';
+    let category = document.getElementById('assetCategory')?.value || '';
 
     if (category === 'Custom') {
       const customCategoryVal = document.getElementById('assetCustomCategory')?.value.trim();
@@ -477,16 +497,21 @@ const AssetsView = {
       }
       category = customCategoryVal;
     }
-    const storeId = document.getElementById('assetStoreId').value;
-    const location = document.getElementById('assetLocation').value.trim();
-    const dueDate = document.getElementById('assetDueDate').value;
-    const cycle = document.getElementById('assetCycle').value;
-    const customDays = parseInt(document.getElementById('assetCustomDays')?.value) || 30;
-    const condition = document.getElementById('assetCondition').value;
-    const serialId = document.getElementById('assetSerial').value.trim() || ('AST-' + Math.floor(100 + Math.random() * 900));
-    const cost = parseFloat(document.getElementById('assetCost').value) || 0;
-    const imageUrl = document.getElementById('assetImageData').value.trim() || Utils.getDefaultAssetImage();
-    const description = document.getElementById('assetDescription').value.trim();
+    const storeId = document.getElementById('assetStoreId')?.value || '';
+    const location = document.getElementById('assetLocation')?.value.trim() || '';
+    const dueDate = document.getElementById('assetDueDate')?.value || Utils.getTodayStr();
+    const cycle = document.getElementById('assetCycle')?.value || 'Monthly';
+    let nextDueDate;
+    if (cycle === 'Input Date' || cycle === 'Custom Date') {
+      nextDueDate = document.getElementById('assetNextDueDate')?.value || dueDate;
+    } else {
+      nextDueDate = Utils.calculateNextDueDate(dueDate, cycle);
+    }
+    const condition = document.getElementById('assetCondition')?.value || 'Good';
+    const serialId = document.getElementById('assetSerial')?.value.trim() || ('AST-' + Math.floor(100 + Math.random() * 900));
+    const cost = parseFloat(document.getElementById('assetCost')?.value) || 0;
+    const imageUrl = document.getElementById('assetImageData')?.value.trim() || Utils.getDefaultAssetImage();
+    const description = document.getElementById('assetDescription')?.value.trim() || '';
 
     const store = storage.getStores().find(s => s.id === storeId);
     const storeName = store ? store.name : 'Unknown Store';
@@ -502,8 +527,9 @@ const AssetsView = {
       storeName,
       location,
       dueDate,
+      nextDueDate,
       cycle,
-      customDays,
+      customDays: existingAsset ? (existingAsset.customDays || 30) : 30,
       condition,
       cost,
       imageUrl,

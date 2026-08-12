@@ -619,19 +619,21 @@ const App = {
     const asset = storage.getAssetById(assetId);
     if (!asset) return;
 
-    if (asset.nextDueDate && asset.cycle !== 'No Repeat') {
-      asset.dueDate = asset.nextDueDate;
+    if (asset.cycle !== 'No Repeat') {
+      const nextDue = asset.nextDueDate || Utils.calculateNextDueDate(asset.dueDate, asset.cycle, asset.customDays);
+      asset.dueDate = nextDue;
+      asset.nextDueDate = Utils.calculateNextDueDate(nextDue, asset.cycle, asset.customDays);
       asset.isCompleted = false;
       storage.saveAsset(asset);
       storage.logActivity(
         'Advanced Maintenance Cycle',
-        `Advanced ${asset.name} to new maintenance cycle (Due: ${asset.dueDate})`,
+        `Advanced ${asset.name} to new maintenance cycle (Due: ${asset.dueDate}, Next: ${asset.nextDueDate})`,
         asset.storeName,
         asset.name,
         Auth.getUser()?.name || 'System User',
         Auth.getUser()?.role || 'Admin'
       );
-      Utils.showToast(`Advanced "${asset.name}" to next cycle (Scheduled Due: ${Utils.formatDate(asset.dueDate)})`, 'info');
+      Utils.showToast(`Advanced "${asset.name}" to next cycle (Scheduled Due: ${Utils.formatDate(asset.dueDate)}, Next: ${Utils.formatDate(asset.nextDueDate)})`, 'info');
       this.renderCurrentView();
     }
   },

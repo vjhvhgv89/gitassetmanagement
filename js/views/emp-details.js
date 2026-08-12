@@ -97,7 +97,7 @@ const EmpDetailsView = {
                   </div>
                   <div>
                     <span class="spec-label">Maintenance Cycle:</span>
-                    <strong class="spec-val">${Utils.escapeHtml(asset.cycle)}</strong>
+                    <strong class="spec-val">${Utils.escapeHtml(Utils.getCycleDisplay(asset))}</strong>
                   </div>
                   <div>
                     <span class="spec-label">Last Completed Date:</span>

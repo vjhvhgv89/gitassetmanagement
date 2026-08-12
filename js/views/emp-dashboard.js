@@ -170,9 +170,10 @@ const EmpDashboardView = {
                 <td>
                   <strong style="font-size: 0.88rem;">${Utils.formatDate(asset.dueDate)}</strong>
                   <div class="text-subtle" style="font-size: 0.78rem;">${Utils.getRelativeDateDisplay(asset.dueDate, asset.isCompleted)}</div>
+                  <div class="text-subtle" style="font-size: 0.75rem; color: #2563eb;">Next: <strong>${Utils.formatDate(asset.nextDueDate || Utils.calculateNextDueDate(asset.dueDate, asset.cycle, asset.customDays))}</strong></div>
                 </td>
                 <td>
-                  <span class="text-subtle" style="font-size: 0.82rem;">${Utils.escapeHtml(asset.cycle)}</span>
+                  <span class="text-subtle" style="font-size: 0.82rem;">${Utils.escapeHtml(Utils.getCycleDisplay(asset))}</span>
                 </td>
                 <td>
                   <span class="badge ${asset.statusInfo.badgeClass}" style="font-size: 0.78rem;">${asset.statusInfo.label}</span>
@@ -228,7 +229,11 @@ const EmpDashboardView = {
                 </div>
                 <div>
                   <span class="spec-label">Cycle:</span>
-                  <span>${Utils.escapeHtml(asset.cycle)}</span>
+                  <span>${Utils.escapeHtml(Utils.getCycleDisplay(asset))}</span>
+                </div>
+                <div>
+                  <span class="spec-label">Next Maintenance:</span>
+                  <strong style="color: #2563eb;">${Utils.formatDate(asset.nextDueDate || Utils.calculateNextDueDate(asset.dueDate, asset.cycle, asset.customDays))}</strong>
                 </div>
               </div>
 

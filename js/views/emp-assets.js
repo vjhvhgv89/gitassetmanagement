@@ -158,6 +158,8 @@ const EmpAssetsView = {
                 </td>
                 <td>
                   <strong style="font-size: 0.88rem;">${Utils.formatDate(asset.dueDate)}</strong>
+                  <div class="text-subtle" style="font-size: 0.75rem;">Cycle: <strong>${Utils.escapeHtml(Utils.getCycleDisplay(asset))}</strong></div>
+                  <div class="text-subtle" style="font-size: 0.75rem; color: #2563eb;">Next: <strong>${Utils.formatDate(asset.nextDueDate || Utils.calculateNextDueDate(asset.dueDate, asset.cycle, asset.customDays))}</strong></div>
                 </td>
                 <td>
                   <span class="condition-tag condition-${asset.condition.toLowerCase().replace(/\s+/g, '-')}" style="font-size: 0.76rem;">${Utils.escapeHtml(asset.condition)}</span>
@@ -215,8 +217,16 @@ const EmpAssetsView = {
                   <strong>${Utils.escapeHtml(asset.category)}</strong>
                 </div>
                 <div>
+                  <span class="spec-label">Cycle:</span>
+                  <strong>${Utils.escapeHtml(Utils.getCycleDisplay(asset))}</strong>
+                </div>
+                <div>
                   <span class="spec-label">Scheduled Date:</span>
                   <strong>${Utils.formatDate(asset.dueDate)}</strong>
+                </div>
+                <div>
+                  <span class="spec-label">Next Maintenance:</span>
+                  <strong style="color: #2563eb;">${Utils.formatDate(asset.nextDueDate || Utils.calculateNextDueDate(asset.dueDate, asset.cycle, asset.customDays))}</strong>
                 </div>
               </div>
 

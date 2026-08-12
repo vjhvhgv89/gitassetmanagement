@@ -98,10 +98,9 @@ const MaintenanceView = {
               </tr>
             </thead>
             <tbody>
-              ${
-                assets.length === 0
-                  ? `<tr><td colspan="8" class="empty-state">No maintenance records found for selected filter tab.</td></tr>`
-                  : assets.map(asset => `
+              ${assets.length === 0
+        ? `<tr><td colspan="8" class="empty-state">No maintenance records found for selected filter tab.</td></tr>`
+        : assets.map(asset => `
                       <tr>
                         <td>
                           <div class="asset-cell">
@@ -116,7 +115,7 @@ const MaintenanceView = {
                           <strong>${Utils.escapeHtml(asset.storeName)}</strong>
                           <div class="text-subtle">${Utils.escapeHtml(asset.location)}</div>
                         </td>
-                        <td>${Utils.escapeHtml(asset.cycle)}</td>
+                        <td>${Utils.escapeHtml(Utils.getCycleDisplay(asset))}</td>
                         <td>
                           <strong>${Utils.formatDate(asset.dueDate)}</strong>
                           <div class="text-subtle">${Utils.getRelativeDateDisplay(asset.dueDate, asset.isCompleted)}</div>
@@ -136,7 +135,7 @@ const MaintenanceView = {
                         </td>
                       </tr>
                     `).join('')
-              }
+      }
             </tbody>
           </table>
         </div>

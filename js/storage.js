@@ -110,6 +110,7 @@ class StorageManager {
           storeName: a.store_name,
           location: a.location,
           dueDate: a.due_date,
+          nextDueDate: a.next_due_date || (window.Utils ? window.Utils.calculateNextDueDate(a.due_date, a.cycle, a.custom_days) : null),
           cycle: a.cycle,
           customDays: a.custom_days,
           condition: a.condition,
@@ -262,8 +263,76 @@ class StorageManager {
     }
   }
 
+  // Auto-advance maintenance cycle when entering 2 weeks (14 days) before nextDueDate
+  checkAndAutoAdvanceAssets() {
+    const assets = this.get(STORAGE_KEYS.ASSETS);
+    if (!Array.isArray(assets) || assets.length === 0) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let updated = false;
+
+    assets.forEach(asset => {
+      if (!asset || !asset.cycle || asset.cycle === 'No Repeat' || asset.cycle === 'Input Date' || asset.cycle === 'Custom Date') {
+        return;
+      }
+
+      if (!asset.dueDate) return;
+
+      if (!asset.nextDueDate && window.Utils) {
+        asset.nextDueDate = window.Utils.calculateNextDueDate(asset.dueDate, asset.cycle, asset.customDays);
+        updated = true;
+      }
+
+      if (!asset.nextDueDate) return;
+
+      const nextParts = asset.nextDueDate.split('-');
+      if (nextParts.length < 3) return;
+      const nextDueDateObj = new Date(nextParts[0], nextParts[1] - 1, nextParts[2]);
+      nextDueDateObj.setHours(0, 0, 0, 0);
+
+      const dueParts = asset.dueDate.split('-');
+      const dueDateObj = dueParts.length >= 3 ? new Date(dueParts[0], dueParts[1] - 1, dueParts[2]) : null;
+      if (dueDateObj) dueDateObj.setHours(0, 0, 0, 0);
+
+      const diffTime = nextDueDateObj.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      const isPastDueDate = dueDateObj && today >= dueDateObj;
+
+      // 2 Weeks (14 days) Before Next Due Date Window Rule
+      if (diffDays <= 14 && (isPastDueDate || asset.isCompleted)) {
+        const oldNext = asset.nextDueDate;
+        asset.dueDate = oldNext;
+        if (window.Utils) {
+          asset.nextDueDate = window.Utils.calculateNextDueDate(oldNext, asset.cycle, asset.customDays);
+        }
+        asset.isCompleted = false;
+        updated = true;
+
+        if (this.supabase) {
+          const payload = {
+            id: asset.id,
+            due_date: asset.dueDate,
+            next_due_date: asset.nextDueDate,
+            is_completed: false
+          };
+          this.supabase.from('assets').update(payload).eq('id', asset.id).then(({ error }) => {
+            if (error) console.error('Supabase Auto-Advance Sync Error:', error);
+          });
+        }
+      }
+    });
+
+    if (updated) {
+      this.set(STORAGE_KEYS.ASSETS, assets);
+    }
+  }
+
   // Assets CRUD & Supabase Sync
   getAssets() {
+    this.checkAndAutoAdvanceAssets();
     return this.get(STORAGE_KEYS.ASSETS);
   }
 
@@ -287,6 +356,9 @@ class StorageManager {
     }
     asset.createdAt = asset.createdAt || new Date().toISOString();
     if (!asset.lastCompletedDate) asset.lastCompletedDate = 'None';
+    if (!asset.nextDueDate && window.Utils) {
+      asset.nextDueDate = window.Utils.calculateNextDueDate(asset.dueDate, asset.cycle, asset.customDays);
+    }
 
     if (existingIndex >= 0) {
       assets[existingIndex] = { ...assets[existingIndex], ...asset };
@@ -306,6 +378,7 @@ class StorageManager {
         store_name: asset.storeName,
         location: asset.location,
         due_date: asset.dueDate,
+        next_due_date: asset.nextDueDate,
         cycle: asset.cycle,
         custom_days: asset.customDays,
         condition: asset.condition,
@@ -319,7 +392,14 @@ class StorageManager {
       this.supabase.from('assets').upsert(payload).then(({ data, error }) => {
         if (error) {
           console.error('❌ Supabase Asset Save Error:', error);
-          if (window.Utils && typeof window.Utils.showToast === 'function') {
+          if (error.message && (error.message.includes('next_due_date') || error.message.includes('column'))) {
+            const fallbackPayload = { ...payload };
+            delete fallbackPayload.next_due_date;
+            this.supabase.from('assets').upsert(fallbackPayload).then(({ error: fbErr }) => {
+              if (fbErr) console.error('❌ Supabase Fallback Asset Save Error:', fbErr);
+              else console.log('✅ Asset saved to Supabase (compatibility mode):', asset.name);
+            });
+          } else if (window.Utils && typeof window.Utils.showToast === 'function') {
             window.Utils.showToast(`Supabase Sync Notice: ${error.message}`, 'warning');
           }
         } else {

@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS public.assets (
     store_name VARCHAR(255) NOT NULL,
     location VARCHAR(255) NOT NULL,
     due_date DATE NOT NULL,
-    cycle VARCHAR(50) NOT NULL CHECK (cycle IN ('Weekly', 'Monthly', 'Every 2 Months', 'Every 3 Months', 'Every 6 Months', 'Every 9 Months', 'Yearly', 'No Repeat', 'Custom')),
+    next_due_date DATE,
+    cycle VARCHAR(50) NOT NULL CHECK (cycle IN ('Weekly', 'Monthly', 'Every 2 Months', 'Every 3 Months', 'Every 6 Months', 'Every 9 Months', 'Yearly', 'No Repeat', 'Custom', 'Custom Days', 'Input Date', 'Custom Date')),
     custom_days INTEGER DEFAULT 30,
     condition VARCHAR(50) DEFAULT 'Good' CHECK (condition IN ('Excellent', 'Good', 'Needs Repair', 'Under Maintenance', 'Damaged', 'Retired')),
     cost NUMERIC(12, 2) DEFAULT 0.00,
@@ -53,6 +54,11 @@ CREATE TABLE IF NOT EXISTS public.assets (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Ensure next_due_date column exists and update cycle check constraint for existing tables
+ALTER TABLE public.assets ADD COLUMN IF NOT EXISTS next_due_date DATE;
+ALTER TABLE public.assets DROP CONSTRAINT IF EXISTS assets_cycle_check;
+ALTER TABLE public.assets ADD CONSTRAINT assets_cycle_check CHECK (cycle IN ('Weekly', 'Monthly', 'Every 2 Months', 'Every 3 Months', 'Every 6 Months', 'Every 9 Months', 'Yearly', 'No Repeat', 'Custom', 'Custom Days', 'Input Date', 'Custom Date'));
 
 -- Performance Indexes for Dashboard Queries & Filters
 CREATE INDEX IF NOT EXISTS idx_assets_store_id ON public.assets(store_id);

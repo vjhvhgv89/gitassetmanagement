@@ -124,8 +124,11 @@ const Utils = {
         d.setFullYear(d.getFullYear() + 1);
         break;
       case 'Custom':
+      case 'Custom Days':
         d.setDate(d.getDate() + (parseInt(customDays) || 30));
         break;
+      case 'Input Date':
+      case 'Custom Date':
       case 'No Repeat':
       default:
         return baseDateStr;
@@ -135,6 +138,16 @@ const Utils = {
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  },
+
+  // Maintenance Cycle Display Formatter (e.g. "Oct 31, 2026")
+  getCycleDisplay(asset) {
+    if (!asset || !asset.cycle) return 'N/A';
+    if (asset.cycle === 'Input Date' || asset.cycle === 'Custom Date') {
+      const dateVal = asset.nextDueDate || asset.dueDate;
+      return dateVal ? this.formatDate(dateVal) : 'N/A';
+    }
+    return asset.cycle;
   },
 
   // Date Formatter: "Aug 15, 2026"
@@ -196,7 +209,7 @@ const Utils = {
 
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-    
+
     let icon = 'i-info';
     if (type === 'success') icon = '✓';
     if (type === 'warning') icon = '⚠';
