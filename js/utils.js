@@ -31,20 +31,10 @@ const Utils = {
     if (asset.isCompleted) {
       return {
         key: 'COMPLETED',
-        label: 'Completed',
+        label: '✓ Completed',
         badgeClass: 'badge-completed',
-        color: '#10b981',
+        color: '#059669',
         bgColor: '#d1fae5'
-      };
-    }
-
-    if (!asset.dueDate) {
-      return {
-        key: 'UPCOMING',
-        label: 'Upcoming',
-        badgeClass: 'badge-upcoming',
-        color: '#6b7280',
-        bgColor: '#f3f4f6'
       };
     }
 
