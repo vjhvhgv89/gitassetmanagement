@@ -654,7 +654,13 @@ const App = {
     const asset = storage.getAssetById(assetId);
     const user = Auth.getUser();
 
-    if (!asset || asset.storeId !== user.storeId) {
+    const isStoreMatch = asset && user && (
+      asset.storeId === user.storeId ||
+      (user.storeCode && asset.storeId === user.storeCode) ||
+      (asset.storeName && user.storeName && asset.storeName.toLowerCase().trim() === user.storeName.toLowerCase().trim())
+    );
+
+    if (!asset || !isStoreMatch) {
       alert('Security Error: Access denied.');
       return;
     }

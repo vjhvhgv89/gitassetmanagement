@@ -18,10 +18,12 @@ const EmpDashboardView = {
     }
 
     // Filter assets assigned STRICTLY to this store
-    const allAssets = storage.getAssets();
-    const storeAssets = allAssets
-      .filter(a => a.storeId === user.storeId)
-      .map(asset => ({
+    // STRICT SCOPING: Only assets for logged in store (matched by ID, Code, or Name)
+    const storeAssets = storage.getAssets().filter(a =>
+      a.storeId === user.storeId ||
+      (user.storeCode && a.storeId === user.storeCode) ||
+      (a.storeName && user.storeName && a.storeName.toLowerCase().trim() === user.storeName.toLowerCase().trim())
+    ).map(asset => ({
         ...asset,
         statusInfo: Utils.calculateStatus(asset)
       }));
