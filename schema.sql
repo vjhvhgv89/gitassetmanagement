@@ -204,9 +204,20 @@ ON CONFLICT (id) DO NOTHING;
 
 
 -- -----------------------------------------------------------------------------
--- 10. ROW LEVEL SECURITY (RLS) POLICIES
--- Enables Row Level Security for production safety.
+-- 10. ROW LEVEL SECURITY (RLS) POLICIES & PERMISSIONS
+-- Ensures anonymous and authenticated web clients have full read/write access.
 -- -----------------------------------------------------------------------------
+
+-- Drop existing policies if any
+DROP POLICY IF EXISTS "Allow public all access to stores" ON public.stores;
+DROP POLICY IF EXISTS "Allow public all access to assets" ON public.assets;
+DROP POLICY IF EXISTS "Allow public all access to maintenance_history" ON public.maintenance_history;
+DROP POLICY IF EXISTS "Allow public all access to asset_comments" ON public.asset_comments;
+DROP POLICY IF EXISTS "Allow public all access to notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Allow public all access to activity_logs" ON public.activity_logs;
+DROP POLICY IF EXISTS "Allow public read access to settings" ON public.system_settings;
+
+-- Enable Row Level Security
 ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.assets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.maintenance_history ENABLE ROW LEVEL SECURITY;
@@ -215,11 +226,20 @@ ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
 
--- Allow read/write access for authenticated users & anon portal clients
+-- Permissive policies allowing ALL web client operations (SELECT, INSERT, UPDATE, DELETE)
 CREATE POLICY "Allow public all access to stores" ON public.stores FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public all access to assets" ON public.assets FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public all access to maintenance_history" ON public.maintenance_history FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public all access to asset_comments" ON public.asset_comments FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public all access to notifications" ON public.notifications FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public all access to activity_logs" ON public.activity_logs FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public read access to settings" ON public.system_settings FOR SELECT USING (true);
+CREATE POLICY "Allow public read access to settings" ON public.system_settings FOR ALL USING (true) WITH CHECK (true);
+
+-- Grant full table access to anon, authenticated, and service_role
+GRANT ALL ON public.stores TO anon, authenticated, service_role;
+GRANT ALL ON public.assets TO anon, authenticated, service_role;
+GRANT ALL ON public.maintenance_history TO anon, authenticated, service_role;
+GRANT ALL ON public.asset_comments TO anon, authenticated, service_role;
+GRANT ALL ON public.notifications TO anon, authenticated, service_role;
+GRANT ALL ON public.activity_logs TO anon, authenticated, service_role;
+GRANT ALL ON public.system_settings TO anon, authenticated, service_role;
