@@ -490,6 +490,15 @@ const App = {
     };
     storage.addMaintenanceRecord(mHistoryRecord);
 
+    // Also post comment in discussion thread so both Admin and Employee see completion notes
+    storage.addComment(
+      asset.id,
+      `🔧 Admin Completed Maintenance (${compDate}): "${comments}"${overrideReason ? ` (Override Reason: ${overrideReason})` : ''}`,
+      workerName,
+      'Admin',
+      asset.imageUrl || null
+    );
+
     const actionName = isEarly ? 'Admin Early Maintenance Override' : 'Admin Completed Maintenance';
     const logDetails = `Completed maintenance for ${asset.name} on ${compDate}. Notes: "${comments}". Next due date: ${nextDueDate}`;
     storage.logActivity(actionName, logDetails, asset.storeName, asset.name, workerName, 'Admin');
@@ -822,6 +831,15 @@ const App = {
       overrideReason: ''
     };
     storage.addMaintenanceRecord(mHistoryRecord);
+
+    // Also post comment in discussion thread so both Admin and Employee see completion notes & uploaded photo
+    storage.addComment(
+      asset.id,
+      `🔧 Completed Maintenance (${compDate}): "${comments}"`,
+      workerName,
+      'Store Manager',
+      photoUrl
+    );
 
     const timingNotice = isLate
       ? ` (Serviced ${diffDays} days after scheduled due date ${Utils.formatDate(scheduledDueDate)})`
