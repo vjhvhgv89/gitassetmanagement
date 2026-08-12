@@ -85,9 +85,12 @@ class StorageManager {
   async syncFromSupabase() {
     if (!this.supabase) return;
     try {
+      let dataChanged = false;
+
       // 1. Sync Stores from Supabase
       const { data: dbStores, error: errStores } = await this.supabase.from('stores').select('*');
-      if (dbStores && Array.isArray(dbStores)) {
+      if (dbStores && Array.isArray(dbStores) && dbStores.length > 0) {
+        const localStores = this.get(STORAGE_KEYS.STORES) || [];
         const mappedStores = dbStores.map(s => ({
           id: s.id,
           code: s.code,
@@ -99,12 +102,21 @@ class StorageManager {
           status: s.status,
           createdAt: s.created_at
         }));
-        this.set(STORAGE_KEYS.STORES, mappedStores);
+        
+        const mergedStores = [...mappedStores];
+        localStores.forEach(ls => {
+          if (!mergedStores.some(s => s.id === ls.id || s.code === ls.code)) {
+            mergedStores.push(ls);
+          }
+        });
+        this.set(STORAGE_KEYS.STORES, mergedStores);
+        dataChanged = true;
       }
 
       // 2. Sync Assets from Supabase
       const { data: dbAssets, error: errAssets } = await this.supabase.from('assets').select('*');
-      if (dbAssets && Array.isArray(dbAssets)) {
+      if (dbAssets && Array.isArray(dbAssets) && dbAssets.length > 0) {
+        const localAssets = this.get(STORAGE_KEYS.ASSETS) || [];
         const mappedAssets = dbAssets.map(a => ({
           id: a.id,
           serialId: a.serial_id,
@@ -116,7 +128,7 @@ class StorageManager {
           dueDate: a.due_date,
           nextDueDate: a.next_due_date || (window.Utils ? window.Utils.calculateNextDueDate(a.due_date, a.cycle, a.custom_days) : null),
           cycle: a.cycle,
-          customDays: a.custom_days,
+          customDays: a.custom_days || 30,
           condition: a.condition,
           cost: a.cost,
           imageUrl: a.image_url,
@@ -125,12 +137,23 @@ class StorageManager {
           lastCompletedDate: a.last_completed_date || 'None',
           createdAt: a.created_at
         }));
-        this.set(STORAGE_KEYS.ASSETS, mappedAssets);
+
+        const mergedAssets = [...mappedAssets];
+        localAssets.forEach(la => {
+          if (!mergedAssets.some(ma => ma.id === la.id)) {
+            mergedAssets.push(la);
+            this.saveAsset(la);
+          }
+        });
+
+        this.set(STORAGE_KEYS.ASSETS, mergedAssets);
+        dataChanged = true;
       }
 
       // 3. Sync Maintenance History from Supabase
       const { data: dbHistory, error: errHistory } = await this.supabase.from('maintenance_history').select('*').order('created_at', { ascending: false });
-      if (dbHistory && Array.isArray(dbHistory)) {
+      if (dbHistory && Array.isArray(dbHistory) && dbHistory.length > 0) {
+        const localHistory = this.get(STORAGE_KEYS.MAINTENANCE_HISTORY) || [];
         const mappedHistory = dbHistory.map(h => ({
           id: h.id,
           assetId: h.asset_id,
@@ -148,10 +171,19 @@ class StorageManager {
           overrideReason: h.override_reason,
           createdAt: h.created_at
         }));
-        this.set(STORAGE_KEYS.MAINTENANCE_HISTORY, mappedHistory);
+
+        const mergedHistory = [...mappedHistory];
+        localHistory.forEach(lh => {
+          if (!mergedHistory.some(mh => mh.id === lh.id)) {
+            mergedHistory.push(lh);
+          }
+        });
+
+        this.set(STORAGE_KEYS.MAINTENANCE_HISTORY, mergedHistory);
+        dataChanged = true;
       }
 
-      // 4. Sync Asset Comments from Supabase (Merge gracefully with local storage)
+      // 4. Sync Asset Comments from Supabase
       try {
         const { data: dbComments, error: errComments } = await this.supabase.from('asset_comments').select('*').order('created_at', { ascending: true });
         if (dbComments && Array.isArray(dbComments) && dbComments.length > 0) {
@@ -177,16 +209,17 @@ class StorageManager {
             }
           });
           this._saveCommentsMap(commentsMap);
+          dataChanged = true;
         }
       } catch (errCmtSync) {
         console.warn('Supabase Comment Sync Note:', errCmtSync);
       }
 
-      if (window.App && typeof window.App.renderCurrentView === 'function') {
+      if (dataChanged && window.App && typeof window.App.renderCurrentView === 'function') {
         window.App.renderCurrentView();
       }
     } catch (e) {
-      console.warn('Supabase Data Sync Note:', e);
+      console.error('❌ Supabase Sync Error:', e);
     }
   }
 
