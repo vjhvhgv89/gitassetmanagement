@@ -702,13 +702,45 @@ class StorageManager {
 
   // Comments
   getComments(assetId) {
+    if (!assetId) return [];
     const map = this._getCommentsMap();
-    return map[assetId] || [];
+
+    const targetAsset = this.getAssetById(assetId);
+    const idKeys = new Set();
+    idKeys.add(String(assetId));
+    if (targetAsset) {
+      if (targetAsset.id) idKeys.add(String(targetAsset.id));
+      if (targetAsset.serialId) idKeys.add(String(targetAsset.serialId));
+      const cleanId = String(targetAsset.id).replace(/^ast_/, '').trim();
+      if (cleanId) idKeys.add(cleanId);
+    }
+
+    const allCmts = [];
+    const seenCmtIds = new Set();
+
+    idKeys.forEach(k => {
+      const list = map[k];
+      if (Array.isArray(list)) {
+        list.forEach(c => {
+          if (c && c.id && !seenCmtIds.has(c.id)) {
+            seenCmtIds.add(c.id);
+            allCmts.push(c);
+          }
+        });
+      }
+    });
+
+    return allCmts.sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0));
   }
 
   addComment(assetId, text, user = 'System Admin', role = 'Admin', photoUrl = null) {
     const map = this._getCommentsMap();
-    if (!map[assetId]) map[assetId] = [];
+
+    const targetAsset = this.getAssetById(assetId);
+    const primaryKey = targetAsset ? targetAsset.id : assetId;
+
+    if (!map[primaryKey]) map[primaryKey] = [];
+
     const newCmt = {
       id: generateUUID(),
       user,
@@ -717,21 +749,26 @@ class StorageManager {
       photoUrl: photoUrl || null,
       timestamp: new Date().toISOString()
     };
-    map[assetId].push(newCmt);
+
+    map[primaryKey].push(newCmt);
+
+    if (targetAsset && targetAsset.serialId && targetAsset.serialId !== primaryKey) {
+      if (!map[targetAsset.serialId]) map[targetAsset.serialId] = [];
+      const dupIdx = map[targetAsset.serialId].findIndex(c => c.id === newCmt.id);
+      if (dupIdx < 0) map[targetAsset.serialId].push(newCmt);
+    }
+
     this._saveCommentsMap(map);
 
-    let targetAssetUuid = assetId;
-    if (!isUUID(targetAssetUuid)) {
-      const matchedAsset = this.getAssetById(assetId);
-      if (matchedAsset && isUUID(matchedAsset.id)) {
-        targetAssetUuid = matchedAsset.id;
-      }
+    let targetAssetUuid = primaryKey;
+    if (!isUUID(targetAssetUuid) && targetAsset && isUUID(targetAsset.id)) {
+      targetAssetUuid = targetAsset.id;
     }
 
     if (this.supabase && assetId) {
       this.supabase.from('asset_comments').insert({
         id: newCmt.id,
-        asset_id: isUUID(targetAssetUuid) ? targetAssetUuid : null,
+        asset_id: isUUID(targetAssetUuid) ? targetAssetUuid : String(assetId),
         user_name: user,
         role: role === 'Store Employee' ? 'Store Manager' : role,
         text,
