@@ -195,8 +195,12 @@ class StorageManager {
       if (dbAssets && Array.isArray(dbAssets)) {
         const localAssets = this.get(STORAGE_KEYS.ASSETS) || [];
         const mappedAssets = dbAssets.map(a => {
-          // Preserve locally-stored overrideStatus so admin overrides survive cloud sync
+          // Preserve locally-stored overrideStatus if cloud column is null, or load cloud override_status
           const localMatch = localAssets.find(la => la.id === a.id);
+          const overrideVal = (a.override_status !== undefined && a.override_status !== null)
+            ? a.override_status
+            : (localMatch && localMatch.overrideStatus ? localMatch.overrideStatus : null);
+
           return {
             id: a.id,
             serialId: a.serial_id,
@@ -216,7 +220,7 @@ class StorageManager {
             isCompleted: a.is_completed,
             lastCompletedDate: a.last_completed_date || 'None',
             createdAt: a.created_at,
-            overrideStatus: localMatch ? (localMatch.overrideStatus || null) : null
+            overrideStatus: overrideVal || null
           };
         });
 
@@ -648,15 +652,17 @@ class StorageManager {
         image_url: asset.imageUrl,
         description: asset.description,
         is_completed: asset.isCompleted,
-        last_completed_date: asset.lastCompletedDate === 'None' ? null : asset.lastCompletedDate
+        last_completed_date: asset.lastCompletedDate === 'None' ? null : asset.lastCompletedDate,
+        override_status: asset.overrideStatus || null
       };
 
       this.supabase.from('assets').upsert(payload).then(({ data, error }) => {
         if (error) {
           console.error('❌ Supabase Asset Save Error:', error);
-          if (error.message && (error.message.includes('next_due_date') || error.message.includes('column'))) {
+          if (error.message && (error.message.includes('next_due_date') || error.message.includes('column') || error.message.includes('override_status'))) {
             const fallbackPayload = { ...payload };
             delete fallbackPayload.next_due_date;
+            delete fallbackPayload.override_status;
             this.supabase.from('assets').upsert(fallbackPayload).then(({ error: fbErr }) => {
               if (fbErr) console.error('❌ Supabase Fallback Asset Save Error:', fbErr);
               else console.log('✅ Asset saved to Supabase (compatibility mode):', asset.name);

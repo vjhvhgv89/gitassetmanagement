@@ -55,8 +55,9 @@ CREATE TABLE IF NOT EXISTS public.assets (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ensure next_due_date column exists and update cycle check constraint for existing tables
+-- Ensure next_due_date and override_status columns exist and update cycle check constraint for existing tables
 ALTER TABLE public.assets ADD COLUMN IF NOT EXISTS next_due_date DATE;
+ALTER TABLE public.assets ADD COLUMN IF NOT EXISTS override_status VARCHAR(50);
 ALTER TABLE public.assets DROP CONSTRAINT IF EXISTS assets_cycle_check;
 ALTER TABLE public.assets ADD CONSTRAINT assets_cycle_check CHECK (cycle IN ('Weekly', 'Monthly', 'Every 2 Months', 'Every 3 Months', 'Every 6 Months', 'Every 9 Months', 'Yearly', 'No Repeat', 'Custom', 'Custom Days', 'Input Date', 'Custom Date'));
 
