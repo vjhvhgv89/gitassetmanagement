@@ -327,7 +327,40 @@ a:hover {
 .header-user-box {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
+}
+
+/* Cloud Sync Button in Top Header */
+.btn-cloud-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--bg-main);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  padding: 6px 13px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.btn-cloud-sync:hover {
+  background: #e2e8f0;
+  color: var(--text-main);
+  border-color: #cbd5e1;
+}
+.btn-cloud-sync.syncing {
+  color: var(--primary-blue);
+  border-color: var(--primary-blue-border);
+  background: var(--primary-blue-light);
+}
+.btn-cloud-sync.syncing .sync-icon {
+  animation: spinSync 0.9s linear infinite;
+}
+@keyframes spinSync {
+  100% { transform: rotate(360deg); }
 }
 
 .notif-bell-btn {

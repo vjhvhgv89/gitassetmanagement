@@ -38,6 +38,7 @@ const App = {
     if (empShell) empShell.style.display = 'none';
     this.updateHeaderUserInfo();
     this.updateUnreadCountBadge();
+    this.updateSyncBadge();
   },
 
   showEmployeeAppShell() {
@@ -47,6 +48,7 @@ const App = {
     if (empShell) empShell.style.display = 'flex';
     this.updateEmpHeaderUserInfo();
     this.updateEmpUnreadCountBadge();
+    this.updateSyncBadge();
   },
 
   handleLogin(event) {
@@ -263,6 +265,34 @@ const App = {
         badgeEl.style.display = 'none';
       }
     }
+  },
+
+  async triggerManualSync(btnEl) {
+    if (btnEl) btnEl.classList.add('syncing');
+    const syncTexts = document.querySelectorAll('.sync-text');
+    syncTexts.forEach(el => el.textContent = 'Syncing...');
+
+    try {
+      await storage.refreshDatabase();
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      syncTexts.forEach(el => el.textContent = `Synced ${timeStr}`);
+    } catch (e) {
+      syncTexts.forEach(el => el.textContent = 'Sync Error');
+    } finally {
+      if (btnEl) {
+        setTimeout(() => {
+          btnEl.classList.remove('syncing');
+        }, 600);
+      }
+    }
+  },
+
+  updateSyncBadge() {
+    const syncTexts = document.querySelectorAll('.sync-text');
+    const timeStr = storage.lastSyncTime
+      ? storage.lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : 'Cloud Synced';
+    syncTexts.forEach(el => el.textContent = `Synced ${timeStr}`);
   },
 
   // ----------------------------------------------------

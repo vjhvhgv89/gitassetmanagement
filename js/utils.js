@@ -4,6 +4,22 @@
  */
 
 const Utils = {
+  // Parse YYYY-MM-DD or ISO string safely into a Date object at local midnight (prevents UTC shift bugs)
+  parseLocalDate(dateStr) {
+    if (!dateStr || typeof dateStr !== 'string') return new Date();
+    const clean = dateStr.split('T')[0];
+    const parts = clean.split('-');
+    if (parts.length >= 3) {
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const d = parseInt(parts[2], 10);
+      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+        return new Date(y, m, d);
+      }
+    }
+    return new Date(dateStr);
+  },
+
   // Get Today's date formatted YYYY-MM-DD
   getTodayStr() {
     const today = new Date();
@@ -28,6 +44,8 @@ const Utils = {
    * - UPCOMING: Scheduled date is more than 7 days away
    */
   calculateStatus(asset) {
+    if (!asset) return { key: 'UPCOMING', label: 'Upcoming', badgeClass: 'badge-upcoming', color: '#6b7280', bgColor: '#f3f4f6' };
+
     if (asset.isCompleted) {
       return {
         key: 'COMPLETED',
@@ -41,8 +59,7 @@ const Utils = {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const parts = asset.dueDate.split('-');
-    const due = new Date(parts[0], parts[1] - 1, parts[2]);
+    const due = this.parseLocalDate(asset.dueDate);
     due.setHours(0, 0, 0, 0);
 
     const diffTime = due.getTime() - today.getTime();
@@ -88,8 +105,8 @@ const Utils = {
    * Returns next YYYY-MM-DD date string based on cycle
    */
   calculateNextDueDate(baseDateStr, cycle, customDays = 30) {
-    const parts = baseDateStr.split('-');
-    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    if (!baseDateStr || baseDateStr === 'None') return this.getTodayStr();
+    const d = this.parseLocalDate(baseDateStr);
 
     switch (cycle) {
       case 'Weekly':
@@ -190,10 +207,13 @@ const Utils = {
   // Date Formatter: "Aug 15, 2026"
   formatDate(dateStr) {
     if (!dateStr || dateStr === 'None') return 'N/A';
-    const parts = dateStr.split('-');
-    if (parts.length < 3) return dateStr;
-    const d = new Date(parts[0], parts[1] - 1, parts[2]);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    try {
+      const d = this.parseLocalDate(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch (e) {
+      return dateStr;
+    }
   },
 
   // Relative Date Display e.g. "Today", "In 3 days", "2 days overdue"
@@ -204,8 +224,7 @@ const Utils = {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const parts = dateStr.split('-');
-    const due = new Date(parts[0], parts[1] - 1, parts[2]);
+    const due = this.parseLocalDate(dateStr);
     due.setHours(0, 0, 0, 0);
 
     const diffDays = Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));

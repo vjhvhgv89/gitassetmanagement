@@ -53,21 +53,79 @@ function isUUID(str) {
 class StorageManager {
   constructor() {
     this.supabase = null;
+    this.realtimeChannel = null;
+    this.lastSyncTime = null;
+    this.isSyncing = false;
     this.initSupabase();
     this.init();
+    this.initAutoSync();
   }
 
   initSupabase() {
     try {
       if (window.supabase && typeof window.supabase.createClient === 'function') {
-        this.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        this.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false
+          }
+        });
         console.log('✅ Connected to Supabase Cloud Database:', SUPABASE_URL);
+        this.initRealtimeSubscriptions();
       } else {
         console.warn('⚠️ Supabase JS SDK loading. Running local fallback mode.');
       }
     } catch (e) {
       console.error('❌ Supabase Client Error:', e);
     }
+  }
+
+  initRealtimeSubscriptions() {
+    if (!this.supabase || typeof this.supabase.channel !== 'function') return;
+    try {
+      if (this.realtimeChannel) {
+        this.supabase.removeChannel(this.realtimeChannel);
+      }
+
+      this.realtimeChannel = this.supabase
+        .channel('app-db-realtime-sync')
+        .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+          console.log('⚡ Realtime Cloud Event Received:', payload.table, payload.eventType);
+          this.syncFromSupabase();
+        })
+        .subscribe((status) => {
+          console.log('📡 Supabase Realtime Status:', status);
+        });
+    } catch (err) {
+      console.warn('Supabase Realtime Subscription Note:', err);
+    }
+  }
+
+  initAutoSync() {
+    // 1. Auto-sync on browser tab focus / visibility change
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          console.log('👁️ Tab active: refreshing data from cloud...');
+          this.syncFromSupabase();
+        }
+      });
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', () => {
+        this.syncFromSupabase();
+      });
+      window.addEventListener('online', () => {
+        console.log('🌐 Network online detected: auto-syncing...');
+        this.syncFromSupabase();
+      });
+    }
+
+    // 2. Periodic background sync every 60 seconds
+    if (this._syncInterval) clearInterval(this._syncInterval);
+    this._syncInterval = setInterval(() => {
+      this.syncFromSupabase();
+    }, 60000);
   }
 
   async init() {
@@ -84,7 +142,7 @@ class StorageManager {
 
   async refreshDatabase() {
     console.log('🔄 Refreshing database & syncing from Supabase...');
-    await this.syncFromSupabase();
+    await this.syncFromSupabase(true);
     if (window.App && typeof window.App.renderCurrentView === 'function') {
       window.App.renderCurrentView();
     }
@@ -93,14 +151,22 @@ class StorageManager {
     }
   }
 
-  async syncFromSupabase() {
-    if (!this.supabase) return;
+  async syncFromSupabase(forceNotify = false) {
+    if (!this.supabase) {
+      if (window.supabase && typeof window.supabase.createClient === 'function') {
+        this.initSupabase();
+      }
+      if (!this.supabase) return;
+    }
+    if (this.isSyncing) return;
+    this.isSyncing = true;
+
     try {
       let dataChanged = false;
 
       // 1. Sync Stores from Supabase
       const { data: dbStores, error: errStores } = await this.supabase.from('stores').select('*');
-      if (dbStores && Array.isArray(dbStores) && dbStores.length > 0) {
+      if (dbStores && Array.isArray(dbStores)) {
         const localStores = this.get(STORAGE_KEYS.STORES) || [];
         const mappedStores = dbStores.map(s => ({
           id: s.id,
@@ -126,8 +192,7 @@ class StorageManager {
 
       // 2. Sync Assets from Supabase
       const { data: dbAssets, error: errAssets } = await this.supabase.from('assets').select('*');
-      if (dbAssets && Array.isArray(dbAssets) && dbAssets.length > 0) {
-        const localAssets = this.get(STORAGE_KEYS.ASSETS) || [];
+      if (dbAssets && Array.isArray(dbAssets)) {
         const mappedAssets = dbAssets.map(a => ({
           id: a.id,
           serialId: a.serial_id,
@@ -155,7 +220,7 @@ class StorageManager {
 
       // 3. Sync Maintenance History from Supabase
       const { data: dbHistory, error: errHistory } = await this.supabase.from('maintenance_history').select('*').order('created_at', { ascending: false });
-      if (dbHistory && Array.isArray(dbHistory) && dbHistory.length > 0) {
+      if (dbHistory && Array.isArray(dbHistory)) {
         const localHistory = this.get(STORAGE_KEYS.MAINTENANCE_HISTORY) || [];
         const mappedHistory = dbHistory.map(h => ({
           id: h.id,
@@ -189,7 +254,7 @@ class StorageManager {
       // 4. Sync Asset Comments from Supabase
       try {
         const { data: dbComments, error: errComments } = await this.supabase.from('asset_comments').select('*').order('created_at', { ascending: true });
-        if (dbComments && Array.isArray(dbComments) && dbComments.length > 0) {
+        if (dbComments && Array.isArray(dbComments)) {
           const commentsMap = this._getCommentsMap();
           dbComments.forEach(c => {
             const aId = c.asset_id;
@@ -218,11 +283,70 @@ class StorageManager {
         console.warn('Supabase Comment Sync Note:', errCmtSync);
       }
 
-      if (dataChanged && window.App && typeof window.App.renderCurrentView === 'function') {
-        window.App.renderCurrentView();
+      // 5. Sync Activity Logs from Supabase
+      try {
+        const { data: dbLogs } = await this.supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(60);
+        if (dbLogs && Array.isArray(dbLogs) && dbLogs.length > 0) {
+          const mappedLogs = dbLogs.map(l => ({
+            id: l.id,
+            date: l.created_at ? l.created_at.split('T')[0] : (window.Utils ? window.Utils.getTodayStr() : ''),
+            time: l.created_at ? new Date(l.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+            user: l.user_name,
+            role: l.role,
+            store: l.store_name,
+            asset: l.asset_name,
+            action: l.action,
+            details: l.details
+          }));
+          this.set(STORAGE_KEYS.ACTIVITY_LOGS, mappedLogs);
+          dataChanged = true;
+        }
+      } catch (errLogSync) {
+        console.warn('Supabase Log Sync Note:', errLogSync);
+      }
+
+      // 6. Sync Notifications from Supabase
+      try {
+        const { data: dbNotifs } = await this.supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(60);
+        if (dbNotifs && Array.isArray(dbNotifs) && dbNotifs.length > 0) {
+          const mappedNotifs = dbNotifs.map(n => ({
+            id: n.id,
+            message: n.message,
+            assetId: n.asset_id,
+            assetName: n.asset_name,
+            storeName: n.store_name,
+            userName: n.user_name,
+            userRole: n.user_role,
+            isRead: n.is_read,
+            date: n.created_at
+          }));
+          this.set(STORAGE_KEYS.NOTIFICATIONS, mappedNotifs);
+          dataChanged = true;
+        }
+      } catch (errNotifSync) {
+        console.warn('Supabase Notification Sync Note:', errNotifSync);
+      }
+
+      this.lastSyncTime = new Date();
+
+      if ((dataChanged || forceNotify) && window.App) {
+        if (typeof window.App.renderCurrentView === 'function') {
+          window.App.renderCurrentView();
+        }
+        if (typeof window.App.updateUnreadCountBadge === 'function') {
+          window.App.updateUnreadCountBadge();
+        }
+        if (typeof window.App.updateEmpUnreadCountBadge === 'function') {
+          window.App.updateEmpUnreadCountBadge();
+        }
+        if (typeof window.App.updateSyncBadge === 'function') {
+          window.App.updateSyncBadge();
+        }
       }
     } catch (e) {
       console.error('❌ Supabase Sync Error:', e);
+    } finally {
+      this.isSyncing = false;
     }
   }
 
