@@ -483,7 +483,7 @@ class StorageManager {
     }
   }
 
-  // Auto-advance maintenance cycle when entering 2 weeks (14 days) before nextDueDate
+  // Auto-advance maintenance cycle when the nextDueDate has arrived
   checkAndAutoAdvanceAssets() {
     const assets = this.get(STORAGE_KEYS.ASSETS);
     if (!Array.isArray(assets) || assets.length === 0) return;
@@ -512,23 +512,28 @@ class StorageManager {
       const nextDueDateObj = new Date(nextParts[0], nextParts[1] - 1, nextParts[2]);
       nextDueDateObj.setHours(0, 0, 0, 0);
 
-      const dueParts = asset.dueDate.split('-');
-      const dueDateObj = dueParts.length >= 3 ? new Date(dueParts[0], dueParts[1] - 1, dueParts[2]) : null;
-      if (dueDateObj) dueDateObj.setHours(0, 0, 0, 0);
+      // Self-healing / reconciliation: If asset has a recorded lastCompletedDate and today is before nextDueDate (and not rejected by admin), keep it completed
+      if (!asset.isCompleted && asset.lastCompletedDate && asset.lastCompletedDate !== 'None' && !asset.rejectionReason) {
+        const lastParts = asset.lastCompletedDate.split('-');
+        if (lastParts.length >= 3) {
+          const lastCompObj = new Date(lastParts[0], lastParts[1] - 1, lastParts[2]);
+          lastCompObj.setHours(0, 0, 0, 0);
+          if (today >= lastCompObj && today < nextDueDateObj) {
+            asset.isCompleted = true;
+            updated = true;
+          }
+        }
+      }
 
-      const diffTime = nextDueDateObj.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      const isPastDueDate = dueDateObj && today >= dueDateObj;
-
-      // 2 Weeks (14 days) Before Next Due Date Window Rule
-      if (diffDays <= 14 && (isPastDueDate || asset.isCompleted)) {
+      // Auto-advance to next cycle ONLY when today reaches or passes the next scheduled due date
+      if (asset.isCompleted && today >= nextDueDateObj) {
         const oldNext = asset.nextDueDate;
         asset.dueDate = oldNext;
         if (window.Utils) {
           asset.nextDueDate = window.Utils.calculateNextDueDate(oldNext, asset.cycle, asset.customDays);
         }
         asset.isCompleted = false;
+        asset.overrideStatus = null;
         updated = true;
 
         if (this.supabase) {

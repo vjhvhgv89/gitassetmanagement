@@ -497,6 +497,8 @@ const App = {
     const nextDueDate = Utils.calculateNextDueDate(compDate, asset.cycle, asset.customDays);
 
     asset.isCompleted = true;
+    asset.overrideStatus = null;
+    asset.rejectionReason = null;
     asset.lastCompletedDate = compDate;
     asset.lastCompletedBy = workerName;
     asset.nextDueDate = nextDueDate;
@@ -831,6 +833,8 @@ const App = {
 
     // UPDATE ASSET COMPLETE STATUS, IMAGES & NEXT DUE DATE
     asset.isCompleted = true;
+    asset.overrideStatus = null;
+    asset.rejectionReason = null;
     asset.lastCompletedDate = compDate;
     asset.lastCompletedBy = workerName;
     asset.lastProofPhoto = photoUrl;
