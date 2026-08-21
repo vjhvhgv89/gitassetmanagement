@@ -193,30 +193,37 @@ class StorageManager {
       // 2. Sync Assets from Supabase
       const { data: dbAssets, error: errAssets } = await this.supabase.from('assets').select('*');
       if (dbAssets && Array.isArray(dbAssets)) {
-        const mappedAssets = dbAssets.map(a => ({
-          id: a.id,
-          serialId: a.serial_id,
-          name: a.name,
-          category: a.category,
-          storeId: a.store_id,
-          storeName: a.store_name,
-          location: a.location,
-          dueDate: a.due_date,
-          nextDueDate: a.next_due_date || (window.Utils ? window.Utils.calculateNextDueDate(a.due_date, a.cycle, a.custom_days) : null),
-          cycle: a.cycle,
-          customDays: a.custom_days || 30,
-          condition: a.condition,
-          cost: a.cost,
-          imageUrl: a.image_url,
-          description: a.description,
-          isCompleted: a.is_completed,
-          lastCompletedDate: a.last_completed_date || 'None',
-          createdAt: a.created_at
-        }));
+        const localAssets = this.get(STORAGE_KEYS.ASSETS) || [];
+        const mappedAssets = dbAssets.map(a => {
+          // Preserve locally-stored overrideStatus so admin overrides survive cloud sync
+          const localMatch = localAssets.find(la => la.id === a.id);
+          return {
+            id: a.id,
+            serialId: a.serial_id,
+            name: a.name,
+            category: a.category,
+            storeId: a.store_id,
+            storeName: a.store_name,
+            location: a.location,
+            dueDate: a.due_date,
+            nextDueDate: a.next_due_date || (window.Utils ? window.Utils.calculateNextDueDate(a.due_date, a.cycle, a.custom_days) : null),
+            cycle: a.cycle,
+            customDays: a.custom_days || 30,
+            condition: a.condition,
+            cost: a.cost,
+            imageUrl: a.image_url,
+            description: a.description,
+            isCompleted: a.is_completed,
+            lastCompletedDate: a.last_completed_date || 'None',
+            createdAt: a.created_at,
+            overrideStatus: localMatch ? (localMatch.overrideStatus || null) : null
+          };
+        });
 
         this.set(STORAGE_KEYS.ASSETS, mappedAssets);
         dataChanged = true;
       }
+
 
       // 3. Sync Maintenance History from Supabase
       const { data: dbHistory, error: errHistory } = await this.supabase.from('maintenance_history').select('*').order('created_at', { ascending: false });

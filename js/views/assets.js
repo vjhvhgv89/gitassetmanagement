@@ -367,6 +367,21 @@ const AssetsView = {
                   </select>
                 </div>
 
+                ${isEdit ? `
+                <div class="form-group">
+                  <label class="form-label">Maintenance Status</label>
+                  <select id="assetOverrideStatus" class="form-control">
+                    <option value="" ${!asset || !asset.overrideStatus ? 'selected' : ''}>-- Auto (Based on Due Date) --</option>
+                    <option value="OVERDUE" ${asset && asset.overrideStatus === 'OVERDUE' ? 'selected' : ''}>Overdue</option>
+                    <option value="DUE_TODAY" ${asset && asset.overrideStatus === 'DUE_TODAY' ? 'selected' : ''}>Due Today</option>
+                    <option value="DUE_SOON" ${asset && asset.overrideStatus === 'DUE_SOON' ? 'selected' : ''}>Due Soon</option>
+                    <option value="UPCOMING" ${asset && asset.overrideStatus === 'UPCOMING' ? 'selected' : ''}>Upcoming</option>
+                    <option value="COMPLETED" ${asset && asset.overrideStatus === 'COMPLETED' ? 'selected' : ''}>Completed</option>
+                  </select>
+                  <small class="form-help">Override the auto-calculated status for this asset.</small>
+                </div>
+                ` : ''}
+
                 <!-- Optional Fields -->
                 <div class="form-group">
                   <label class="form-label">Serial / Asset ID (Optional)</label>
@@ -508,6 +523,8 @@ const AssetsView = {
       nextDueDate = Utils.calculateNextDueDate(dueDate, cycle);
     }
     const condition = document.getElementById('assetCondition')?.value || 'Good';
+    const overrideStatusRaw = document.getElementById('assetOverrideStatus')?.value || '';
+    const overrideStatus = overrideStatusRaw || null;
     const serialId = document.getElementById('assetSerial')?.value.trim() || ('AST-' + Math.floor(100 + Math.random() * 900));
     const cost = parseFloat(document.getElementById('assetCost')?.value) || 0;
     const imageUrl = document.getElementById('assetImageData')?.value.trim() || Utils.getDefaultAssetImage();
@@ -531,10 +548,11 @@ const AssetsView = {
       cycle,
       customDays: existingAsset ? (existingAsset.customDays || 30) : 30,
       condition,
+      overrideStatus,
       cost,
       imageUrl,
       description,
-      isCompleted: existingAsset ? existingAsset.isCompleted : false,
+      isCompleted: overrideStatus === 'COMPLETED' ? true : (overrideStatus && overrideStatus !== 'COMPLETED' ? false : (existingAsset ? existingAsset.isCompleted : false)),
       lastCompletedDate: existingAsset ? existingAsset.lastCompletedDate : 'None'
     };
 

@@ -46,14 +46,21 @@ const Utils = {
   calculateStatus(asset) {
     if (!asset) return { key: 'UPCOMING', label: 'Upcoming', badgeClass: 'badge-upcoming', color: '#6b7280', bgColor: '#f3f4f6' };
 
+    // Admin-set override status takes priority over auto-calculation
+    const STATUS_MAP = {
+      'OVERDUE':   { key: 'OVERDUE',    label: 'Overdue',      badgeClass: 'badge-overdue',   color: '#ef4444', bgColor: '#fee2e2' },
+      'DUE_TODAY': { key: 'DUE_TODAY',  label: 'Due Today',    badgeClass: 'badge-due-today', color: '#3b82f6', bgColor: '#dbeafe' },
+      'DUE_SOON':  { key: 'DUE_SOON',   label: 'Due Soon',     badgeClass: 'badge-due-soon',  color: '#f59e0b', bgColor: '#fef3c7' },
+      'UPCOMING':  { key: 'UPCOMING',   label: 'Upcoming',     badgeClass: 'badge-upcoming',  color: '#6b7280', bgColor: '#f3f4f6' },
+      'COMPLETED': { key: 'COMPLETED',  label: '✓ Completed',  badgeClass: 'badge-completed', color: '#059669', bgColor: '#d1fae5' }
+    };
+
+    if (asset.overrideStatus && STATUS_MAP[asset.overrideStatus]) {
+      return STATUS_MAP[asset.overrideStatus];
+    }
+
     if (asset.isCompleted) {
-      return {
-        key: 'COMPLETED',
-        label: '✓ Completed',
-        badgeClass: 'badge-completed',
-        color: '#059669',
-        bgColor: '#d1fae5'
-      };
+      return STATUS_MAP['COMPLETED'];
     }
 
     const today = new Date();
@@ -66,37 +73,13 @@ const Utils = {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays < 0) {
-      return {
-        key: 'OVERDUE',
-        label: 'Overdue',
-        badgeClass: 'badge-overdue',
-        color: '#ef4444',
-        bgColor: '#fee2e2'
-      };
+      return STATUS_MAP['OVERDUE'];
     } else if (diffDays === 0) {
-      return {
-        key: 'DUE_TODAY',
-        label: 'Due Today',
-        badgeClass: 'badge-due-today',
-        color: '#3b82f6',
-        bgColor: '#dbeafe'
-      };
+      return STATUS_MAP['DUE_TODAY'];
     } else if (diffDays <= 7) {
-      return {
-        key: 'DUE_SOON',
-        label: 'Due Soon',
-        badgeClass: 'badge-due-soon',
-        color: '#f59e0b',
-        bgColor: '#fef3c7'
-      };
+      return STATUS_MAP['DUE_SOON'];
     } else {
-      return {
-        key: 'UPCOMING',
-        label: 'Upcoming',
-        badgeClass: 'badge-upcoming',
-        color: '#6b7280',
-        bgColor: '#f3f4f6'
-      };
+      return STATUS_MAP['UPCOMING'];
     }
   },
 
