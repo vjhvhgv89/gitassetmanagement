@@ -259,20 +259,34 @@ class StorageManager {
           dbComments.forEach(c => {
             const aId = c.asset_id;
             if (aId) {
-              if (!commentsMap[aId]) commentsMap[aId] = [];
-              const idx = commentsMap[aId].findIndex(item => item.id === c.id);
               const cmtObj = {
                 id: c.id,
+                assetId: aId,
                 user: c.user_name,
                 role: c.role,
                 text: c.text,
                 photoUrl: c.photo_url || null,
                 timestamp: c.created_at
               };
-              if (idx >= 0) {
-                commentsMap[aId][idx] = cmtObj;
-              } else {
-                commentsMap[aId].push(cmtObj);
+
+              const storeInKey = (key) => {
+                if (!key) return;
+                const strKey = String(key).trim();
+                if (!commentsMap[strKey]) commentsMap[strKey] = [];
+                const idx = commentsMap[strKey].findIndex(item => item.id === c.id);
+                if (idx >= 0) commentsMap[strKey][idx] = cmtObj;
+                else commentsMap[strKey].push(cmtObj);
+              };
+
+              // Store under raw database asset_id
+              storeInKey(aId);
+
+              // Also resolve against matched asset and store under all its aliases
+              const matchedAsset = this.getAssetById(aId);
+              if (matchedAsset) {
+                if (matchedAsset.id) storeInKey(matchedAsset.id);
+                if (matchedAsset.serialId) storeInKey(matchedAsset.serialId);
+                if (matchedAsset.name) storeInKey(matchedAsset.name);
               }
             }
           });
@@ -341,6 +355,41 @@ class StorageManager {
         }
         if (typeof window.App.updateSyncBadge === 'function') {
           window.App.updateSyncBadge();
+        }
+
+        // Live refresh open details modal if present
+        const adminModal = document.getElementById('assetDetailsModal');
+        if (adminModal && window.AssetDetailsView) {
+          const activeTabBtn = adminModal.querySelector('.details-tab-btn.active');
+          const tabKey = activeTabBtn ? activeTabBtn.id.replace('tabHead', '').toLowerCase() : 'comments';
+          const titleEl = adminModal.querySelector('h3');
+          if (titleEl && titleEl.textContent) {
+            const matchedAsset = this.getAssetById(titleEl.textContent);
+            if (matchedAsset) {
+              adminModal.remove();
+              const newHtml = AssetDetailsView.renderModal(matchedAsset.id);
+              if (newHtml) App.showModal(newHtml);
+              if (tabKey) {
+                setTimeout(() => {
+                  if (typeof AssetDetailsView.switchDetailsTab === 'function') {
+                    AssetDetailsView.switchDetailsTab(tabKey);
+                  }
+                }, 20);
+              }
+            }
+          }
+        }
+
+        const empModal = document.getElementById('empAssetDetailsModal');
+        if (empModal && window.EmpDetailsView) {
+          const titleEl = empModal.querySelector('h3');
+          if (titleEl && titleEl.textContent) {
+            const matchedAsset = this.getAssetById(titleEl.textContent);
+            if (matchedAsset) {
+              empModal.remove();
+              EmpDetailsView.openModal(matchedAsset.id);
+            }
+          }
         }
       }
     } catch (e) {
@@ -503,12 +552,37 @@ class StorageManager {
   getAssetById(assetId) {
     if (!assetId) return null;
     const assets = this.getAssets();
-    const cleanId = String(assetId).replace(/^ast_/, '').trim();
-    return assets.find(a =>
-      a.id === assetId ||
-      String(a.id).replace(/^ast_/, '').trim() === cleanId ||
-      (a.serialId && String(a.serialId).trim() === String(assetId).trim())
-    ) || null;
+    const cleanId = String(assetId).trim();
+    const cleanLower = cleanId.toLowerCase();
+    const cleanNoPrefix = cleanLower.replace(/^ast[-_]/i, '').trim();
+    const cleanAlpha = cleanId.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+    return assets.find(a => {
+      if (!a) return false;
+      const aId = String(a.id || '').trim();
+      const aIdLower = aId.toLowerCase();
+      const aIdNoPrefix = aIdLower.replace(/^ast[-_]/i, '').trim();
+      const aIdAlpha = aId.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+      const aSerial = String(a.serialId || '').trim();
+      const aSerialLower = aSerial.toLowerCase();
+      const aSerialNoPrefix = aSerialLower.replace(/^ast[-_]/i, '').trim();
+      const aSerialAlpha = aSerial.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+      const aName = String(a.name || '').trim().toLowerCase();
+
+      return (
+        aId === cleanId ||
+        aIdLower === cleanLower ||
+        (cleanNoPrefix && aIdNoPrefix === cleanNoPrefix) ||
+        (cleanAlpha && aIdAlpha === cleanAlpha) ||
+        aSerial === cleanId ||
+        aSerialLower === cleanLower ||
+        (cleanNoPrefix && aSerialNoPrefix === cleanNoPrefix) ||
+        (cleanAlpha && aSerialAlpha === cleanAlpha) ||
+        (aName && aName === cleanLower)
+      );
+    }) || null;
   }
 
   saveAsset(asset) {
@@ -706,20 +780,32 @@ class StorageManager {
     if (assetId) {
       const targetAsset = this.getAssetById(assetId);
       const idKeys = new Set();
-      idKeys.add(String(assetId).toLowerCase().trim());
 
+      const addKeyVariants = (val) => {
+        if (!val) return;
+        const str = String(val).trim();
+        if (!str) return;
+        idKeys.add(str.toLowerCase());
+        const noPrefix = str.replace(/^ast[-_]/i, '').toLowerCase().trim();
+        if (noPrefix) idKeys.add(noPrefix);
+        const alpha = str.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        if (alpha) idKeys.add(alpha);
+      };
+
+      addKeyVariants(assetId);
       if (targetAsset) {
-        if (targetAsset.id) idKeys.add(String(targetAsset.id).toLowerCase().trim());
-        if (targetAsset.serialId) idKeys.add(String(targetAsset.serialId).toLowerCase().trim());
-        const cleanId = String(targetAsset.id).replace(/^ast_/, '').toLowerCase().trim();
-        if (cleanId) idKeys.add(cleanId);
+        addKeyVariants(targetAsset.id);
+        addKeyVariants(targetAsset.serialId);
+        if (targetAsset.name) idKeys.add(String(targetAsset.name).trim().toLowerCase());
       }
 
       history = history.filter(h => {
         if (!h || !h.assetId) return false;
-        const hAssetId = String(h.assetId).toLowerCase().trim();
-        const cleanHId = hAssetId.replace(/^ast_/, '').trim();
-        return idKeys.has(hAssetId) || idKeys.has(cleanHId);
+        const hAssetId = String(h.assetId).trim();
+        const hLower = hAssetId.toLowerCase();
+        const hNoPrefix = hLower.replace(/^ast[-_]/i, '').trim();
+        const hAlpha = hAssetId.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        return idKeys.has(hLower) || idKeys.has(hNoPrefix) || idKeys.has(hAlpha);
       });
     }
 
@@ -848,22 +934,60 @@ class StorageManager {
 
     const targetAsset = this.getAssetById(assetId);
     const idKeys = new Set();
-    idKeys.add(String(assetId));
+
+    const addKeyVariants = (val) => {
+      if (!val) return;
+      const str = String(val).trim();
+      if (!str) return;
+      idKeys.add(str);
+      idKeys.add(str.toLowerCase());
+      idKeys.add(str.toUpperCase());
+      const noPrefix = str.replace(/^ast[-_]/i, '').trim();
+      if (noPrefix) {
+        idKeys.add(noPrefix);
+        idKeys.add(noPrefix.toLowerCase());
+      }
+      const alphaNumOnly = str.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+      if (alphaNumOnly) {
+        idKeys.add(alphaNumOnly);
+      }
+    };
+
+    addKeyVariants(assetId);
     if (targetAsset) {
-      if (targetAsset.id) idKeys.add(String(targetAsset.id));
-      if (targetAsset.serialId) idKeys.add(String(targetAsset.serialId));
-      const cleanId = String(targetAsset.id).replace(/^ast_/, '').trim();
-      if (cleanId) idKeys.add(cleanId);
+      addKeyVariants(targetAsset.id);
+      addKeyVariants(targetAsset.serialId);
+      if (targetAsset.name) {
+        idKeys.add(String(targetAsset.name).trim().toLowerCase());
+      }
     }
 
     const allCmts = [];
     const seenCmtIds = new Set();
 
-    idKeys.forEach(k => {
-      const list = map[k];
+    Object.keys(map).forEach(mapKey => {
+      const mapKeyClean = String(mapKey).trim();
+      const mapKeyLower = mapKeyClean.toLowerCase();
+      const mapKeyNoPrefix = mapKeyLower.replace(/^ast[-_]/i, '').trim();
+      const mapKeyAlpha = mapKeyClean.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+      let isKeyMatch = idKeys.has(mapKeyClean) || idKeys.has(mapKeyLower) || idKeys.has(mapKeyNoPrefix) || idKeys.has(mapKeyAlpha);
+
+      const list = map[mapKey];
       if (Array.isArray(list)) {
         list.forEach(c => {
-          if (c && c.id && !seenCmtIds.has(c.id)) {
+          if (!c || !c.id || seenCmtIds.has(c.id)) return;
+
+          let isCmtMatch = isKeyMatch;
+          if (!isCmtMatch && c.assetId) {
+            const cAssetId = String(c.assetId).trim();
+            const cLower = cAssetId.toLowerCase();
+            const cNoPrefix = cLower.replace(/^ast[-_]/i, '').trim();
+            const cAlpha = cAssetId.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            isCmtMatch = idKeys.has(cAssetId) || idKeys.has(cLower) || idKeys.has(cNoPrefix) || idKeys.has(cAlpha);
+          }
+
+          if (isCmtMatch) {
             seenCmtIds.add(c.id);
             allCmts.push(c);
           }
@@ -884,6 +1008,7 @@ class StorageManager {
 
     const newCmt = {
       id: generateUUID(),
+      assetId: primaryKey,
       user,
       role,
       text,
@@ -893,10 +1018,16 @@ class StorageManager {
 
     map[primaryKey].push(newCmt);
 
-    if (targetAsset && targetAsset.serialId && targetAsset.serialId !== primaryKey) {
-      if (!map[targetAsset.serialId]) map[targetAsset.serialId] = [];
-      const dupIdx = map[targetAsset.serialId].findIndex(c => c.id === newCmt.id);
-      if (dupIdx < 0) map[targetAsset.serialId].push(newCmt);
+    // Also mirror to other identifier keys locally
+    if (targetAsset) {
+      if (targetAsset.serialId && targetAsset.serialId !== primaryKey) {
+        if (!map[targetAsset.serialId]) map[targetAsset.serialId] = [];
+        if (!map[targetAsset.serialId].some(c => c.id === newCmt.id)) map[targetAsset.serialId].push(newCmt);
+      }
+      if (targetAsset.name && targetAsset.name !== primaryKey) {
+        if (!map[targetAsset.name]) map[targetAsset.name] = [];
+        if (!map[targetAsset.name].some(c => c.id === newCmt.id)) map[targetAsset.name].push(newCmt);
+      }
     }
 
     this._saveCommentsMap(map);
@@ -909,13 +1040,20 @@ class StorageManager {
     if (this.supabase && assetId) {
       this.supabase.from('asset_comments').insert({
         id: newCmt.id,
-        asset_id: isUUID(targetAssetUuid) ? targetAssetUuid : String(assetId),
+        asset_id: isUUID(targetAssetUuid) ? targetAssetUuid : (targetAsset ? targetAsset.id : String(assetId)),
         user_name: user,
         role: role === 'Store Employee' ? 'Store Manager' : role,
         text,
         photo_url: photoUrl || null
       }).then(({ error }) => {
-        if (error) console.error('Supabase Comment Error:', error);
+        if (error) {
+          console.error('Supabase Comment Error:', error);
+          if (window.Utils && typeof window.Utils.showToast === 'function') {
+            window.Utils.showToast(`Supabase Comment Sync Notice: ${error.message}`, 'warning');
+          }
+        } else {
+          console.log('✅ Comment saved to Supabase successfully.');
+        }
       });
     }
 
